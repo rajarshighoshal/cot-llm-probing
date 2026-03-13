@@ -127,31 +127,29 @@ using binary cross-entropy loss (multi-label: multiple styles may pass). At test
 
 \subsection{Phase A: Early Emergence of Prompt-Type Representations}
 
-Layer-wise probing reveals that prompt-type information emerges remarkably early across all four models (Table~\ref{tab:tomography}).
+Layer-wise probing reveals that prompt-type information emerges remarkably early across all four models (Figure~\ref{fig:tomography}).
 
-\begin{table}[h]
+\begin{figure}[h]
     \centering
-    \caption{\textbf{Prompt-type emergence across models.} All models distinguish Direct from CoT by Layer 1--4, regardless of instruction tuning or architecture.}
-    \label{tab:tomography}
-    \begin{tabular}{lccc}
-        \toprule
-        \textbf{Model} & \textbf{Layers} & \textbf{Emergence ($>$90\%)} & \textbf{Peak} \\
-        \midrule
-        Qwen-1.5B Base (HumanEval) & 28 & Layer 1 & 100\% (L10) \\
-        Qwen-1.5B Base (MBPP) & 28 & Layer 1 & 100\% (L3) \\
-        DeepSeek-1.3B Base (HumanEval) & 24 & Layer 1 & 100\% (L4) \\
-        DeepSeek-1.3B Base (MBPP) & 24 & Layer 1 & 100\% (L4) \\
-        \bottomrule
-    \end{tabular}
-\end{table}
+    \includegraphics[width=\linewidth]{figures/fig1_tomography.pdf}
+    \caption{\textbf{Prompt-type probe accuracy vs.\ layer depth.} Both architectures cross 90\% accuracy by Layer~1 and saturate at 100\% well before 25\% depth. The red dashed line marks Layer~3 (12.5\% depth), where we extract activations for the strategy selector.}
+    \label{fig:tomography}
+\end{figure}
 
-All models achieve $>$90\% probe accuracy by Layer 1 and reach 100\% within the first 10--15\% of network depth. This early emergence (12.5\% depth or less) suggests the models recognize CoT as a \emph{structural} pattern---comment syntax and formatting---rather than a \emph{semantic} instruction to reason differently.
+All models achieve $>$90\% probe accuracy by Layer 1 and reach 100\% within the first 10--15\% of network depth. This early emergence suggests the models recognize CoT as a \emph{structural} pattern---comment syntax and formatting---rather than a \emph{semantic} instruction to reason differently.
 
 The universality of this finding is notable: despite different architectures, training data, and parameter counts, prompt-type encoding follows the same pattern. Yet as we show next, this shared encoding drives divergent downstream behavior.
 
 \subsection{Phase B: Instruction Tuning Reverses CoT's Effect}
 
-Table~\ref{tab:generation} presents our central finding across all model-dataset combinations.
+Figure~\ref{fig:cot_reversal} and Table~\ref{tab:generation} present our central finding across all model-dataset combinations.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.72\linewidth]{figures/fig2_cot_reversal.pdf}
+    \caption{\textbf{CoT effect (CoT $-$ Direct, pp) across models and datasets.} Green = CoT helps; red = CoT hurts. Qwen flips sign between base and instruct ($**$ $p{<}0.01$); DeepSeek is consistently neutral.}
+    \label{fig:cot_reversal}
+\end{figure}
 
 \begin{table}[h]
     \centering
@@ -193,7 +191,28 @@ Three key findings emerge:
 
 Given the model-specific nature of CoT effects, we test whether activation probes can select the optimal prompting strategy per problem. Using early-layer activations (Layer 3--4, approximately 12.5\% depth), we train a pass/fail probe and use it to score all 12 prompt styles for each test problem.
 
-Results are presented in Table~\ref{tab:strategy}.
+Results are presented in Figure~\ref{fig:strategy} and Table~\ref{tab:strategy}.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\linewidth]{figures/fig3_strategy_selector.pdf}
+    \caption{\textbf{Strategy selector results} (Pass@1). Each panel = one model; groups = HumanEval / MBPP. Blue (Probe) and green (Best Single) values are labelled. Oracle is the per-problem upper bound.}
+    \label{fig:strategy}
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\linewidth]{figures/fig4_style_heatmap.pdf}
+    \caption{\textbf{Per-style Pass@1} averaged over HumanEval and MBPP. The best style per model is boxed. No single style dominates across models: instruct models prefer persona/constraint styles while base models favor reasoning styles (Plan, CoT).}
+    \label{fig:heatmap}
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\linewidth]{figures/fig5_oracle_gap.pdf}
+    \caption{\textbf{Oracle gap recovery.} Bars show what fraction of the (Oracle $-$ Direct) gap each method captures. The probe consistently recovers more gap than CoT and Random, approaching Best Single style.}
+    \label{fig:oracle_gap}
+\end{figure}
 
 \begin{table}[h]
     \centering
