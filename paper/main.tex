@@ -97,13 +97,13 @@ We define a library of 12 prompting styles spanning four categories:
     \item \textbf{Constraint:} \emph{simple} (``Keep it simple''), \emph{careful} (``Handle edge cases''), \emph{efficient} (``Use efficient algorithm''), \emph{tdd} (``Pass all tests''), \emph{defensive} (``Handle all inputs''), \emph{typed} (``Use type hints'')
 \end{itemize}
 
-Each style prepends a short comment prefix to the raw prompt. For Phase B (Direct vs.\ CoT comparison), we use \emph{direct} and \emph{cot}. For Phase C (strategy selection), all 12 styles are used.
+Each style prepends a short comment prefix to the raw prompt. For the Direct vs.\ CoT comparison, we use \emph{direct} and \emph{cot}. For strategy selection, all 12 styles are used.
 
 \subsection{Evaluation}
 
 All experiments use greedy decoding (temperature = 0, max 512 tokens) to isolate prompt effects from sampling variance. We report Pass@1 and use McNemar's test for statistical significance on paired binary outcomes. Code correctness is evaluated via execution against test cases.
 
-\subsection{Phase A: Layer-wise Probing}
+\subsection{Layer-wise Probing}
 
 We train binary linear probes at each transformer layer to classify Direct vs.\ CoT prompts. For each problem, we extract residual stream activations $h_\ell \in \mathbb{R}^d$ at the final token position and train:
 \begin{equation}
@@ -111,11 +111,11 @@ We train binary linear probes at each transformer layer to classify Direct vs.\ 
 \end{equation}
 This identifies the \emph{emergence point} where prompt-type information becomes linearly separable.
 
-\subsection{Phase B: Direct vs.\ CoT Comparison}
+\subsection{Direct vs.\ CoT Comparison}
 
 We evaluate Direct and CoT prompting on all problems across all four models and three datasets, yielding a $4 \times 3$ comparison matrix.
 
-\subsection{Phase C: Probe-Guided Strategy Selection}
+\subsection{Probe-Guided Strategy Selection}
 
 We develop a \emph{selection probe} that uses the activation of a single direct-prompt forward pass to predict which of the 12 styles will succeed on a given problem. Specifically, we extract the residual stream activation at Layer $\lfloor L/8 \rfloor$ ($\approx$12.5\% depth) under the \emph{direct} prompt and train a two-layer MLP:
 \begin{equation}
@@ -125,7 +125,7 @@ using binary cross-entropy loss (multi-label: multiple styles may pass). At test
 
 \section{Results}
 
-\subsection{Phase A: Early Emergence of Prompt-Type Representations}
+\subsection{Early Emergence of Prompt-Type Representations}
 
 Layer-wise probing reveals that prompt-type information emerges remarkably early across all four models (Figure~\ref{fig:tomography}).
 
@@ -140,7 +140,7 @@ All models achieve $>$90\% probe accuracy by Layer 1 and reach 100\% within the 
 
 The universality of this finding is notable: despite different architectures, training data, and parameter counts, prompt-type encoding follows the same pattern. Yet as we show next, this shared encoding drives divergent downstream behavior.
 
-\subsection{Phase B: Instruction Tuning Reverses CoT's Effect}
+\subsection{Instruction Tuning Reverses CoT's Effect}
 
 Figure~\ref{fig:cot_reversal} and Table~\ref{tab:generation} present our central finding across all model-dataset combinations.
 
@@ -187,7 +187,7 @@ Three key findings emerge:
 
 \textbf{3. The effect generalizes across benchmarks.} The pattern holds on LiveCodeBench, a contamination-free benchmark the models could not have memorized. This rules out benchmark-specific artifacts.
 
-\subsection{Phase C: Probe-Guided Strategy Selection}
+\subsection{Probe-Guided Strategy Selection}
 
 Given the model-specific nature of CoT effects, we test whether activation probes can select the optimal prompting strategy per problem. Using early-layer activations (Layer 3--4, approximately 12.5\% depth), we train a pass/fail probe and use it to score all 12 prompt styles for each test problem.
 
