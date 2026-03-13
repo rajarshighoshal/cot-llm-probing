@@ -67,6 +67,26 @@ class MLPProbe(nn.Module):
         return self.net(x)
 
 
+class SelectionProbe(nn.Module):
+    """Predicts which style(s) will pass from a single problem activation.
+
+    Input: direct-prompt activation (d_model,)
+    Output: per-style logits (n_styles,)
+    Trained with BCE loss (multi-label: multiple styles can pass).
+    """
+    def __init__(self, d_model, n_styles, hidden=128):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(d_model, hidden),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(hidden, n_styles),
+        )
+
+    def forward(self, x):
+        return self.net(x)
+
+
 def train_probe(activations, labels, probe_type="linear", d_model=None,
                 n_epochs=200, lr=1e-3):
     """Train pass/fail probe. Returns trained probe and accuracy."""
@@ -97,6 +117,37 @@ def train_probe(activations, labels, probe_type="linear", d_model=None,
     return probe, acc
 
 
+def train_selection_probe(activations, labels_multi, n_styles, d_model=None,
+                          n_epochs=500, lr=1e-3):
+    """Train selection probe: problem activation → which styles pass.
+
+    activations: list of tensors (one per problem, from direct prompt)
+    labels_multi: list of lists, each inner list has 1/0 per style
+    Returns trained probe and per-style accuracy.
+    """
+    X = torch.stack(activations)
+    y = torch.tensor(labels_multi).float()
+
+    if d_model is None:
+        d_model = X.shape[1]
+
+    probe = SelectionProbe(d_model, n_styles)
+    optimizer = optim.Adam(probe.parameters(), lr=lr)
+    criterion = nn.BCEWithLogitsLoss()
+
+    for _ in range(n_epochs):
+        optimizer.zero_grad()
+        loss = criterion(probe(X), y)
+        loss.backward()
+        optimizer.step()
+
+    with torch.no_grad():
+        preds = (torch.sigmoid(probe(X)) > 0.5).float()
+        acc = (preds == y).float().mean().item()
+
+    return probe, acc
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -106,6 +157,9 @@ def main():
     parser.add_argument("--model", required=True, choices=list(MODEL_REGISTRY.keys()))
     parser.add_argument("--dataset", required=True, choices=["humaneval", "mbpp", "livecodebench"])
     parser.add_argument("--probe_type", default="linear", choices=["linear", "mlp"])
+    parser.add_argument("--probe_mode", default="selection", choices=["passfail", "selection"],
+                        help="passfail: per-style pass/fail probe (old). "
+                             "selection: predict best style from direct activation (new)")
     parser.add_argument("--probe_layer", type=int, default=None,
                         help="Layer to extract activations from (default: ~12.5%% depth)")
     parser.add_argument("--train_split", type=int, default=None,
@@ -130,10 +184,16 @@ def main():
     # Output/cache paths
     out_dir = os.path.join(args.output_dir, args.model)
     os.makedirs(out_dir, exist_ok=True)
-    suffix = f"_{args.probe_type}" if args.probe_type != "linear" else ""
+    suffix_parts = []
+    if args.probe_mode != "passfail":
+        suffix_parts.append(args.probe_mode)
+    if args.probe_type != "linear":
+        suffix_parts.append(args.probe_type)
+    suffix = ("_" + "_".join(suffix_parts)) if suffix_parts else ""
     out_path = os.path.join(out_dir, f"strategy_selector_{args.dataset}{suffix}.csv")
-    act_cache = os.path.join(out_dir, f"_act_cache_{args.dataset}{suffix}.pt")
-    gen_cache = os.path.join(out_dir, f"_gen_cache_{args.dataset}{suffix}.json")
+    # Caches are shared across probe modes (same data regardless of probe type)
+    act_cache = os.path.join(out_dir, f"_act_cache_{args.dataset}.pt")
+    gen_cache = os.path.join(out_dir, f"_gen_cache_{args.dataset}.json")
 
     # -------------------------------------------------------------------
     # Step 1: Collect activations (always PyTorch — needs hidden states)
@@ -253,20 +313,41 @@ def main():
     # -------------------------------------------------------------------
     # Step 3: Train probe
     # -------------------------------------------------------------------
-    print(f"\n--- Step 3: Training {args.probe_type} probe ---")
-    train_acts = []
-    train_labels = []
-    for prob in train_problems:
-        for style in styles:
-            train_acts.append(all_activations[(str(prob["id"]), style)])
-            train_labels.append(1 if get_passed(prob["id"], style) else 0)
+    print(f"\n--- Step 3: Training {args.probe_mode}/{args.probe_type} probe ---")
 
-    probe, train_acc = train_probe(
-        train_acts, train_labels,
-        probe_type=args.probe_type,
-        d_model=meta["hidden_size"],
-    )
-    print(f"  Train samples: {len(train_acts)}, accuracy: {train_acc:.4f}")
+    if args.probe_mode == "selection":
+        # Selection probe: direct-prompt activation → predict which styles pass
+        train_acts = []
+        train_labels_multi = []
+        for prob in train_problems:
+            # Use direct-prompt activation as problem representation
+            train_acts.append(all_activations[(str(prob["id"]), "direct")])
+            label_vec = [1 if get_passed(prob["id"], s) else 0 for s in styles]
+            train_labels_multi.append(label_vec)
+
+        probe, train_acc = train_selection_probe(
+            train_acts, train_labels_multi,
+            n_styles=len(styles),
+            d_model=meta["hidden_size"],
+        )
+        print(f"  Mode: selection (direct activation → style prediction)")
+        print(f"  Train problems: {len(train_acts)}, element-wise accuracy: {train_acc:.4f}")
+    else:
+        # Original pass/fail probe
+        train_acts = []
+        train_labels = []
+        for prob in train_problems:
+            for style in styles:
+                train_acts.append(all_activations[(str(prob["id"]), style)])
+                train_labels.append(1 if get_passed(prob["id"], style) else 0)
+
+        probe, train_acc = train_probe(
+            train_acts, train_labels,
+            probe_type=args.probe_type,
+            d_model=meta["hidden_size"],
+        )
+        print(f"  Mode: passfail (per-style pass/fail classification)")
+        print(f"  Train samples: {len(train_acts)}, accuracy: {train_acc:.4f}")
 
     # -------------------------------------------------------------------
     # Step 4: Evaluate on test set
@@ -276,19 +357,31 @@ def main():
 
     for prob in tqdm(test_problems, desc="Scoring"):
         row = {"id": prob["id"]}
-        best_style = None
-        best_score = -float("inf")
 
+        # Record per-style pass results
         for style in styles:
-            act = all_activations[(str(prob["id"]), style)]
-            with torch.no_grad():
-                score = probe(act.unsqueeze(0))[0, 1].item()
-            row[f"{style}_score"] = score
             row[f"{style}_pass"] = get_passed(prob["id"], style)
 
-            if score > best_score:
-                best_score = score
-                best_style = style
+        if args.probe_mode == "selection":
+            # Selection: one activation → scores for all styles
+            act = all_activations[(str(prob["id"]), "direct")]
+            with torch.no_grad():
+                logits = probe(act.unsqueeze(0))[0]
+            for i, style in enumerate(styles):
+                row[f"{style}_score"] = logits[i].item()
+            best_style = styles[logits.argmax().item()]
+        else:
+            # Pass/fail: score each style's activation independently
+            best_style = None
+            best_score = -float("inf")
+            for style in styles:
+                act = all_activations[(str(prob["id"]), style)]
+                with torch.no_grad():
+                    score = probe(act.unsqueeze(0))[0, 1].item()
+                row[f"{style}_score"] = score
+                if score > best_score:
+                    best_score = score
+                    best_style = style
 
         row["probe_selected_style"] = best_style
         row["probe_selected_pass"] = get_passed(prob["id"], best_style)
@@ -302,10 +395,8 @@ def main():
     df = pd.DataFrame(results)
     df.to_csv(out_path, index=False)
 
-    # Clean up caches
-    for path in [act_cache, gen_cache]:
-        if os.path.exists(path):
-            os.remove(path)
+    # Keep caches for reuse across probe modes
+    # To clean up: rm results/<model>/_act_cache_* results/<model>/_gen_cache_*
 
     # -------------------------------------------------------------------
     # Summary
@@ -316,7 +407,7 @@ def main():
 
     print(f"\n{'='*60}")
     print(f"  {args.model} on {args.dataset} (test={len(test_problems)})")
-    print(f"  Probe: {args.probe_type}, Layer: {probe_layer}")
+    print(f"  Probe: {args.probe_mode}/{args.probe_type}, Layer: {probe_layer}")
     print(f"  Prompt library: {len(styles)} styles")
     print(f"{'='*60}")
     print(f"  Oracle (ceiling):   {df['oracle_pass'].mean():.1%} Pass@1")

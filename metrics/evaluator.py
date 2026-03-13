@@ -6,10 +6,14 @@ import numpy as np
 
 def extract_code(text):
     """Extract Python code from markdown code blocks, or return as-is."""
-    # Try to find ```python ... ``` blocks
+    # Try to find ```python ... ``` blocks (closed)
     matches = re.findall(r'```(?:python)?\s*\n(.*?)```', text, re.DOTALL)
     if matches:
         return matches[0].strip()
+    # Handle truncated blocks (no closing ```)
+    match = re.search(r'```(?:python)?\s*\n(.*)', text, re.DOTALL)
+    if match:
+        return match.group(1).strip()
     return text
 
 
@@ -45,12 +49,15 @@ def _fix_indentation(code, prompt):
     if not expected_indent:
         return code
 
-    # Fix only the first non-empty line if its indent is short
+    # Fix only the first non-empty line if its indent is short.
+    # Skip if code starts at column 0 (instruct model returning full function).
     lines = code.split("\n")
     for i, line in enumerate(lines):
         stripped = line.lstrip()
         if stripped:
             actual_spaces = len(line) - len(stripped)
+            if actual_spaces == 0:
+                break  # Code at column 0 — don't touch (full function/class)
             expected_spaces = len(expected_indent)
             if actual_spaces < expected_spaces:
                 lines[i] = " " * (expected_spaces - actual_spaces) + line

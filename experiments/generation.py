@@ -107,14 +107,18 @@ def _load_mlx(model_key):
 
 
 def _generate_mlx(model, tokenizer, prompt, device, max_new_tokens=512):
-    from mlx_lm import generate
-    response = generate(
-        model, tokenizer,
-        prompt=prompt,
-        max_tokens=max_new_tokens,
-        verbose=False,
-    )
-    return response
+    import re
+    from mlx_lm import stream_generate
+
+    text = ""
+    for response in stream_generate(model, tokenizer, prompt, max_tokens=max_new_tokens):
+        text += response.text
+        # Early stop: if a complete code block is present (opening + content + closing ```)
+        # Safe: only triggers when extract_code would succeed, so no premature cutoff
+        if re.search(r'```(?:python)?\s*\n.+?\n```', text, re.DOTALL):
+            break
+
+    return text
 
 
 def _cleanup_mlx(device):
