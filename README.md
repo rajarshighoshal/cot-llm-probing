@@ -18,13 +18,13 @@ pip install -r requirements.txt
 ## Running Experiments
 
 ```bash
-# Phase A: Layer-wise probe accuracy (where does prompt-type info emerge?)
+# Layer-wise probe accuracy
 python -m experiments.tomography --model qwen_coder --dataset humaneval
 
-# Phase B: Direct vs CoT pass rate comparison
+# Direct vs CoT pass rate comparison
 python -m experiments.generation --model qwen_coder_instruct --dataset humaneval
 
-# Phase C: Probe-guided style routing
+# Probe-guided style routing
 python -m experiments.strategy_selector --model qwen_coder_instruct --dataset humaneval
 
 # Run everything
