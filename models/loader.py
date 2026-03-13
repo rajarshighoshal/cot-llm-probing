@@ -5,10 +5,21 @@ Activation extraction uses output_hidden_states=True — works with
 every HuggingFace model without TransformerLens.
 """
 
+import gc
+
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from models import get_model_name
+from models import get_model_name, MODEL_REGISTRY
+
+
+def cleanup(device=None):
+    """Free memory on any device (CUDA/MPS/CPU)."""
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    if hasattr(torch, "mps") and torch.backends.mps.is_available():
+        torch.mps.empty_cache()
 
 
 def get_device():
@@ -34,19 +45,21 @@ def load_model(model_key, device=None):
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    dtype = torch.float16 if device == "cuda" else torch.float32
+    dtype = torch.float32 if device == "cpu" else torch.float16
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
-        torch_dtype=dtype,
+        dtype=dtype,
         device_map={"": device},
         trust_remote_code=True,
     )
     model.eval()
 
+    is_instruct = MODEL_REGISTRY.get(model_key, {}).get("instruct", False)
     metadata = {
         "num_layers": model.config.num_hidden_layers,
         "hidden_size": model.config.hidden_size,
         "num_params": sum(p.numel() for p in model.parameters()),
+        "instruct": is_instruct,
     }
     print(f"  {metadata['num_layers']} layers, d={metadata['hidden_size']}, "
           f"{metadata['num_params']/1e6:.0f}M params")
@@ -77,3 +90,11 @@ def get_last_token_activation(model, tokenizer, text, layer, device):
     hidden_states = get_hidden_states(model, tokenizer, text, device)
     # layer+1 because index 0 is embedding output
     return hidden_states[layer + 1][0, -1, :].detach().float().cpu()
+
+
+def format_prompt(prompt, tokenizer, meta):
+    """Wrap prompt in chat template for instruct models, pass through for base."""
+    if not meta.get("instruct", False):
+        return prompt
+    messages = [{"role": "user", "content": f"Complete the following Python function:\n\n{prompt}"}]
+    return tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)

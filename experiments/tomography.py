@@ -11,7 +11,6 @@ Usage:
 """
 
 import argparse
-import gc
 import os
 
 import pandas as pd
@@ -23,7 +22,7 @@ from tqdm import tqdm
 from data_loader import get_dataset
 from experiments import PROMPT_STYLES
 from models import MODEL_REGISTRY
-from models.loader import get_device, load_model, get_last_token_activation
+from models.loader import get_device, load_model, get_last_token_activation, cleanup
 
 
 class LinearProbe(nn.Module):
@@ -67,7 +66,7 @@ def train_and_eval_probe(X_direct, X_cot, n_epochs=50, lr=1e-3):
 def main():
     parser = argparse.ArgumentParser(description="Phase A: Layer-wise Tomography")
     parser.add_argument("--model", required=True, choices=list(MODEL_REGISTRY.keys()))
-    parser.add_argument("--dataset", required=True, choices=["humaneval", "mbpp"])
+    parser.add_argument("--dataset", required=True, choices=["humaneval", "mbpp", "livecodebench"])
     parser.add_argument("--samples", type=int, default=50)
     parser.add_argument("--layer_step", type=int, default=1)
     parser.add_argument("--output_dir", default="results")
@@ -94,9 +93,7 @@ def main():
         print(f"  Layer {layer:3d}: {acc:.4f}")
 
         del X_direct, X_cot
-        gc.collect()
-        if device == "cuda":
-            torch.cuda.empty_cache()
+        cleanup(device)
 
     # Save
     out_dir = os.path.join(args.output_dir, args.model)

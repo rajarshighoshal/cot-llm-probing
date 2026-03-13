@@ -10,10 +10,22 @@ MODEL_REGISTRY = {
         "family": "qwen2",
         "params": "1.5B",
     },
+    "qwen_coder_instruct": {
+        "name": "Qwen/Qwen2.5-Coder-1.5B-Instruct",
+        "family": "qwen2",
+        "params": "1.5B",
+        "instruct": True,
+    },
     "deepseek_coder": {
         "name": "deepseek-ai/deepseek-coder-1.3b-base",
         "family": "llama",
         "params": "1.3B",
+    },
+    "deepseek_coder_instruct": {
+        "name": "deepseek-ai/deepseek-coder-1.3b-instruct",
+        "family": "llama",
+        "params": "1.3B",
+        "instruct": True,
     },
     "codellama": {
         "name": "codellama/CodeLlama-7b-hf",
