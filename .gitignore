@@ -15,3 +15,7 @@ venv/
 .DS_Store
 *.log
 wandb/
+*.pdf
+*.zip
+*_log.txt
+*enrollment*

@@ -1,13 +1,13 @@
-# Don't Make LLMs Overthink: When Chain-of-Thought Hurts Code Generation
+# Think Less, Code Better
 
-Mechanistic interpretability study showing that Chain-of-Thought prompting degrades code generation accuracy in base (non-instruction-tuned) code LLMs.
+Code for the paper: *Think Less, Code Better: Probing When Chain-of-Thought Hurts and How to Route Around It*
 
 ## Key Findings
 
-- CoT prompting degrades Pass@1 by 6.7% on base code models (p=0.02)
-- Prompt-type information becomes linearly separable at layer 4 of 32 — very early
-- Early emergence is architecture-agnostic across multiple model families
-- A probe-guided strategy selector improves over both Direct and CoT baselines
+- **CoT reversal under instruction tuning:** CoT significantly improves Qwen2.5-Coder base (+13.4%, p<0.001) but significantly degrades the instruction-tuned variant (−15.2%, p<0.001) on the same architecture
+- **Architecture-specific sensitivity:** DeepSeek-Coder is insensitive to CoT regardless of training regime; CodeLlama-7B base is also hurt (−6.7%, p=0.022)
+- **Early encoding, divergent behavior:** All models encode prompt type by Layer 1–4 (>90% accuracy) — yet this universal encoding drives opposite behavioral outcomes depending on training regime
+- **Probe-guided router:** A lightweight MLP probe selects from 12 prompt styles via a single 84ms forward pass, statistically matching the best fixed style in 7/8 settings
 
 ## Setup
 
@@ -17,46 +17,51 @@ pip install -r requirements.txt
 
 ## Running Experiments
 
-Individual experiments:
 ```bash
-# Phase A: Where do prompt-type signals emerge?
+# Phase A: Layer-wise probe accuracy (where does prompt-type info emerge?)
 python -m experiments.tomography --model qwen_coder --dataset humaneval
 
-# Phase B: Does CoT help or hurt?
-python -m experiments.generation --model deepseek_coder --dataset mbpp
+# Phase B: Direct vs CoT pass rate comparison
+python -m experiments.generation --model qwen_coder_instruct --dataset humaneval
 
-# Phase C: Can probes pick the best strategy?
-python -m experiments.strategy_selector --model qwen_coder --dataset humaneval
-```
+# Phase C: Probe-guided style routing
+python -m experiments.strategy_selector --model qwen_coder_instruct --dataset humaneval
 
-Run everything:
-```bash
+# Run everything
 bash run_all.sh
 ```
 
-## Supported Models
+## Models
 
-| Key | Model | Params | Fits on M4 Pro |
-|-----|-------|--------|----------------|
-| `qwen_coder` | Qwen2.5-Coder-1.5B | 1.5B | Yes |
-| `deepseek_coder` | DeepSeek-Coder-1.3B | 1.3B | Yes |
-| `starcoder2_3b` | StarCoder2-3B | 3B | Yes |
-| `phi2` | Phi-2 | 2.7B | Yes |
-| `codellama` | CodeLlama-7B | 7B | Needs GPU |
+| Key | Model | Params | Type |
+|-----|-------|--------|------|
+| `qwen_coder` | Qwen2.5-Coder-1.5B | 1.5B | Base |
+| `qwen_coder_instruct` | Qwen2.5-Coder-1.5B-Instruct | 1.5B | Instruct |
+| `deepseek_coder` | DeepSeek-Coder-1.3B | 1.3B | Base |
+| `deepseek_coder_instruct` | DeepSeek-Coder-1.3B-Instruct | 1.3B | Instruct |
+| `codellama` | CodeLlama-7B | 7B | Base |
+
+All 1.3–1.5B models tested on Apple M4 Pro 24GB (MPS + MLX). CodeLlama-7B requires a GPU.
 
 ## Datasets
 
-- **HumanEval** (164 problems) — primary benchmark
-- **MBPP** (500 problems) — secondary benchmark
+- **HumanEval** (164 problems)
+- **MBPP** (500 problems)
+- **LiveCodeBench** (381 problems, contamination-free)
 
 ## Project Structure
 
 ```
-experiments/       Unified, device-agnostic experiment runners
-data_loader/       Dataset loaders (HumanEval, MBPP)
-models/            Model registry and universal loader
-metrics/           Pass@k evaluation, McNemar's test
-results/           Experiment outputs (CSVs)
-paper/             LaTeX source
-paper_figures/     Publication figures
+experiments/     tomography.py, generation.py, strategy_selector.py
+data_loader/     HumanEval, MBPP, LiveCodeBench loaders
+models/          Model registry and loader
+metrics/         Pass@k, McNemar's test, execution eval
+results/         Cached CSVs and activation caches
+paper/           LaTeX source and figures
+```
+
+## Regenerate Figures
+
+```bash
+python paper/make_figures.py
 ```

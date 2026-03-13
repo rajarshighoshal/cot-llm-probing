@@ -320,31 +320,33 @@ def fig_style_heatmap():
 
 
 # ---------------------------------------------------------------------------
-# Figure 5: Oracle gap recovery (how much of oracle gap each method captures)
+# Figure 5: Style variance (σ) vs. probe improvement — scatter plot
+# Shows that the probe is most useful when style sensitivity is high
 # ---------------------------------------------------------------------------
 def fig_oracle_gap():
-    # Short labels: QB=Qwen Base, QI=Qwen Instruct, DB=DeepSeek Base, DI=DeepSeek Instruct
-    short = {"qwen_coder": "QB", "qwen_coder_instruct": "QI",
-             "deepseek_coder": "DB", "deepseek_coder_instruct": "DI"}
+    short = {"qwen_coder": "Qwen\nBase", "qwen_coder_instruct": "Qwen\nInstruct",
+             "deepseek_coder": "DeepSeek\nBase", "deepseek_coder_instruct": "DeepSeek\nInstruct"}
+    marker_style = {"qwen_coder": "o", "qwen_coder_instruct": "s",
+                    "deepseek_coder": "^", "deepseek_coder_instruct": "D"}
+    model_colors = {"qwen_coder": CB["blue"], "qwen_coder_instruct": CB["red"],
+                    "deepseek_coder": CB["green"], "deepseek_coder_instruct": CB["purple"]}
+
     records = []
     for mk, _ in MODELS:
         for d in ["humaneval", "mbpp"]:
             try:
                 df = pd.read_csv(f"results/{mk}/strategy_selector_{d}_selection.csv")
-                direct = df["direct_pass"].mean()
-                oracle = df["oracle_pass"].mean()
-                gap = oracle - direct
-                if gap < 0.02:
-                    continue
-                best_s = max(STYLES, key=lambda s: df[f"{s}_pass"].mean())
+                direct = df["direct_pass"].mean() * 100
+                probe  = df["probe_selected_pass"].mean() * 100
+                # σ = std of Pass@1 across 12 fixed styles
+                style_means = [df[f"{s}_pass"].mean() * 100 for s in STYLES]
+                sigma = float(np.std(style_means))
                 ds_short = "HE" if d == "humaneval" else "MB"
                 records.append({
-                    "label": f"{short[mk]}\n{ds_short}",
-                    "gap": gap * 100,
-                    "CoT":         max(0, df["cot_pass"].mean() - direct) / gap * 100,
-                    "Probe":       max(0, df["probe_selected_pass"].mean() - direct) / gap * 100,
-                    "Best Single": max(0, df[f"{best_s}_pass"].mean() - direct) / gap * 100,
-                    "Random":      max(0, df["random_selected_pass"].mean() - direct) / gap * 100,
+                    "mk": mk, "ds": ds_short,
+                    "sigma": sigma,
+                    "probe_improvement": probe - direct,
+                    "label": ds_short,
                 })
             except:
                 pass
@@ -352,55 +354,57 @@ def fig_oracle_gap():
     if not records:
         return
 
-    methods = ["CoT", "Random", "Probe", "Best Single"]
-    colors  = [CB["orange"], CB["gray"], CB["blue"], CB["green"]]
-    bar_w   = 0.17
-    n       = len(records)
-    x       = np.arange(n)
+    fig, ax = plt.subplots(figsize=(4.8, 3.2))
 
-    fig, ax = plt.subplots(figsize=(7.0, 2.9))
+    # Plot each point
+    seen_labels = set()
+    for r in records:
+        mk = r["mk"]
+        label = short[mk].replace("\n", " ") if mk not in seen_labels else None
+        seen_labels.add(mk)
+        ax.scatter(r["sigma"], r["probe_improvement"],
+                   color=model_colors[mk], marker=marker_style[mk],
+                   s=55, zorder=3, label=label, edgecolors="white", linewidths=0.5)
+        # Dataset label offset
+        offset_x = 0.001
+        offset_y = 0.3
+        ax.text(r["sigma"] + offset_x, r["probe_improvement"] + offset_y,
+                r["label"], fontsize=7, color=model_colors[mk], ha="left", va="bottom")
 
-    for i, (method, color) in enumerate(zip(methods, colors)):
-        offset = (i - 1.5) * bar_w
-        vals = [r[method] for r in records]
-        bars = ax.bar(x + offset, vals, width=bar_w * 0.9, color=color,
-                      label=method, edgecolor="white", linewidth=0.4, zorder=2)
-        if method == "Probe":
-            for bar in bars:
-                bar.set_edgecolor(CB["blue"])
-                bar.set_linewidth(1.4)
+    # Reference line at y=0
+    x_range = [min(r["sigma"] for r in records), max(r["sigma"] for r in records)]
+    ax.axhline(0, color="black", linestyle="--", linewidth=0.9, alpha=0.4, zorder=1)
+    ax.text(x_range[1] * 0.98, 0.4, "Probe = Direct", fontsize=7,
+            color="gray", ha="right", va="bottom")
 
-    ax.set_xticks(x)
-    ax.set_xticklabels([r["label"] for r in records], fontsize=8.5)
-    ax.axhline(100, color="black", linestyle="--", linewidth=0.9, alpha=0.35, zorder=1)
+    # Shading: high-variance region
+    ax.axvspan(0.04, x_range[1] * 1.05, alpha=0.06, color=CB["blue"],
+               label="High variance (σ > 0.04)")
 
-    # Gap size annotation — placed below x-axis
-    for xi, r in zip(x, records):
-        ax.annotate(f"Δ={r['gap']:.0f}pp",
-                    xy=(xi, 0), xytext=(xi, -14),
-                    fontsize=6, ha="center", color="#555555",
-                    annotation_clip=False)
-
-    ax.set_ylabel("% of Oracle Gap Recovered\n(above Direct baseline)", fontsize=8.5)
-    ax.yaxis.set_major_formatter(mtick.PercentFormatter())
-    ax.set_ylim(0, 118)
-    ax.set_xlim(-0.6, n - 0.4)
-    ax.text(n - 0.42, 101.5, "Oracle", fontsize=7, color="black", alpha=0.5, va="bottom")
-    ax.set_title("How much of the oracle gap does each method recover?",
+    ax.set_xlabel("Style Variance σ  (std of Pass@1 across 12 styles)", fontsize=9)
+    ax.set_ylabel("Probe improvement over Direct (pp)", fontsize=9)
+    ax.set_title("Probe is most useful when style choice matters most",
                  fontsize=9, fontweight="bold")
-    ax.legend(frameon=False, ncol=4, loc="upper right", fontsize=8,
-              bbox_to_anchor=(1.0, 0.98))
-    # Model legend footnote
-    fig.text(0.5, -0.06,
-             "QB=Qwen Base · QI=Qwen Instruct · DB=DeepSeek Base · DI=DeepSeek Instruct · "
-             "HE=HumanEval · MB=MBPP",
-             ha="center", fontsize=6.5, color="#555555")
 
+    # Legend: model markers only
+    handles, labels = ax.get_legend_handles_labels()
+    # Filter out the shaded region from main legend
+    model_handles = [(h, l) for h, l in zip(handles, labels) if "High variance" not in l]
+    shade_handles = [(h, l) for h, l in zip(handles, labels) if "High variance" in l]
+    leg1 = ax.legend([h for h, _ in model_handles], [l for _, l in model_handles],
+                     loc="upper left", fontsize=7.5, frameon=False,
+                     handletextpad=0.4, borderpad=0.3)
+    if shade_handles:
+        ax.legend([h for h, _ in shade_handles], [l for _, l in shade_handles],
+                  loc="lower right", fontsize=7.5, frameon=False)
+        ax.add_artist(leg1)
+
+    ax.set_xlim(max(0, x_range[0] - 0.003), x_range[1] + 0.006)
     plt.tight_layout()
     plt.savefig(f"{OUT}/fig5_oracle_gap.pdf")
     plt.savefig(f"{OUT}/fig5_oracle_gap.png")
     plt.close()
-    print("✓ fig5_oracle_gap")
+    print("✓ fig5_oracle_gap (scatter: σ vs probe improvement)")
 
 
 if __name__ == "__main__":

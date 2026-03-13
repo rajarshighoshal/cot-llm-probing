@@ -152,18 +152,89 @@ def train_selection_probe(activations, labels_multi, n_styles, d_model=None,
 # Main
 # ---------------------------------------------------------------------------
 
+def _collect_activations_for_dataset(ds_name, problems, out_dir, styles,
+                                      model_pt, tokenizer_pt, meta, probe_layer, device):
+    """Load or collect activations for a single dataset. Returns activations dict."""
+    act_cache = os.path.join(out_dir, f"_act_cache_{ds_name}.pt")
+    if os.path.exists(act_cache):
+        print(f"  Loading cached activations for {ds_name}...")
+        cached = torch.load(act_cache, weights_only=False)
+        return cached["activations"], cached["meta"], cached["probe_layer"]
+
+    print(f"  Collecting activations for {ds_name} ({len(problems)} problems)...")
+    activations = {}
+    for i, prob in enumerate(tqdm(problems, desc=f"Activations/{ds_name}")):
+        for style in styles:
+            prompt = PROMPT_STYLES[style](prob["prompt"])
+            prompt_fmt = format_prompt(prompt, tokenizer_pt, meta)
+            act = get_last_token_activation(
+                model_pt, tokenizer_pt, prompt_fmt, probe_layer, device
+            )
+            activations[(str(prob["id"]), style)] = act
+        cleanup(device)
+        if (i + 1) % 20 == 0:
+            torch.save({"activations": activations, "meta": meta,
+                        "probe_layer": probe_layer}, act_cache)
+    torch.save({"activations": activations, "meta": meta,
+                "probe_layer": probe_layer}, act_cache)
+    return activations, meta, probe_layer
+
+
+def _generate_for_dataset(ds_name, problems, out_dir, styles, model_gen, tok_gen,
+                           meta, gen_device, backend):
+    """Load or generate results for a single dataset. Returns gen_results dict."""
+    gen_cache = os.path.join(out_dir, f"_gen_cache_{ds_name}.json")
+    gen_results = {}
+    if os.path.exists(gen_cache):
+        with open(gen_cache) as f:
+            gen_results = json.load(f)
+        print(f"  Loaded {len(gen_results)} cached generations for {ds_name}")
+
+    done_ids = set()
+    for key in gen_results:
+        pid = key.rsplit("|", 1)[0]
+        if all(f"{pid}|{s}" in gen_results for s in styles):
+            done_ids.add(pid)
+    remaining = [p for p in problems if str(p["id"]) not in done_ids]
+
+    if remaining:
+        print(f"  Generating {len(remaining)} problems for {ds_name} ({backend})...")
+        for i, prob in enumerate(tqdm(remaining, desc=f"Generating/{ds_name}")):
+            for style in styles:
+                prompt = PROMPT_STYLES[style](prob["prompt"])
+                prompt_fmt = format_prompt(prompt, tok_gen, meta)
+                generated = generate_code(model_gen, tok_gen, prompt_fmt, gen_device,
+                                          backend=backend)
+                passed = check_correctness(generated, prob)
+                gen_results[f"{prob['id']}|{style}"] = bool(passed)
+            cleanup_gen(gen_device, backend)
+            if (i + 1) % 10 == 0:
+                with open(gen_cache, "w") as f:
+                    json.dump(gen_results, f)
+        with open(gen_cache, "w") as f:
+            json.dump(gen_results, f)
+    else:
+        print(f"  All generations cached for {ds_name}.")
+
+    return gen_results
+
+
 def main():
     parser = argparse.ArgumentParser(description="Phase C: Probe-Guided Strategy Selector")
     parser.add_argument("--model", required=True, choices=list(MODEL_REGISTRY.keys()))
-    parser.add_argument("--dataset", required=True, choices=["humaneval", "mbpp", "livecodebench"])
+    parser.add_argument("--dataset", required=True, choices=["humaneval", "mbpp", "livecodebench"],
+                        help="Test dataset (and train dataset unless --transfer_from is set)")
+    parser.add_argument("--transfer_from", default=None,
+                        help="Comma-separated datasets to train probe on, e.g. 'humaneval,mbpp'. "
+                             "When set, --dataset is used only for testing (cross-dataset transfer).")
     parser.add_argument("--probe_type", default="linear", choices=["linear", "mlp"])
     parser.add_argument("--probe_mode", default="selection", choices=["passfail", "selection"],
-                        help="passfail: per-style pass/fail probe (old). "
-                             "selection: predict best style from direct activation (new)")
+                        help="passfail: per-style pass/fail probe. "
+                             "selection: predict best style from direct activation (default)")
     parser.add_argument("--probe_layer", type=int, default=None,
                         help="Layer to extract activations from (default: ~12.5%% depth)")
     parser.add_argument("--train_split", type=int, default=None,
-                        help="Number of problems for probe training (rest = eval)")
+                        help="Problems for probe training in same-dataset mode (default: 50%%)")
     parser.add_argument("--backend", default="pytorch", choices=["pytorch", "mlx"],
                         help="Generation backend (mlx is ~17x faster on Apple Silicon)")
     parser.add_argument("--output_dir", default="results")
@@ -171,64 +242,84 @@ def main():
 
     styles = list(PROMPT_STYLES.keys())
 
-    # Load dataset
-    ds = get_dataset(args.dataset)
-    problems = ds.get_problems()
+    # -------------------------------------------------------------------
+    # Determine train/test datasets and problems
+    # -------------------------------------------------------------------
+    transfer_mode = args.transfer_from is not None
+    if transfer_mode:
+        train_ds_names = [d.strip() for d in args.transfer_from.split(",")]
+        test_ds_name = args.dataset
+        all_ds_names = list(dict.fromkeys(train_ds_names + [test_ds_name]))  # preserve order, dedup
+    else:
+        train_ds_names = [args.dataset]
+        test_ds_name = args.dataset
+        all_ds_names = [args.dataset]
 
-    # Train/test split
-    if args.train_split is None:
-        args.train_split = len(problems) // 2
-    train_problems = problems[:args.train_split]
-    test_problems = problems[args.train_split:]
+    # Load problem lists for all datasets
+    all_ds_problems = {}
+    for ds_name in all_ds_names:
+        all_ds_problems[ds_name] = get_dataset(ds_name).get_problems()
 
-    # Output/cache paths
+    if transfer_mode:
+        # Train on ALL problems from training datasets; test on ALL test dataset problems
+        train_problems = [p for ds_name in train_ds_names for p in all_ds_problems[ds_name]]
+        test_problems = all_ds_problems[test_ds_name]
+        print(f"  Transfer mode: train on {train_ds_names} → test on {test_ds_name}")
+    else:
+        problems = all_ds_problems[args.dataset]
+        if args.train_split is None:
+            args.train_split = len(problems) // 2
+        train_problems = problems[:args.train_split]
+        test_problems = problems[args.train_split:]
+
+    # Output paths
     out_dir = os.path.join(args.output_dir, args.model)
     os.makedirs(out_dir, exist_ok=True)
     suffix_parts = []
+    if transfer_mode:
+        suffix_parts.append("transfer")
     if args.probe_mode != "passfail":
         suffix_parts.append(args.probe_mode)
     if args.probe_type != "linear":
         suffix_parts.append(args.probe_type)
     suffix = ("_" + "_".join(suffix_parts)) if suffix_parts else ""
     out_path = os.path.join(out_dir, f"strategy_selector_{args.dataset}{suffix}.csv")
-    # Caches are shared across probe modes (same data regardless of probe type)
-    act_cache = os.path.join(out_dir, f"_act_cache_{args.dataset}.pt")
-    gen_cache = os.path.join(out_dir, f"_gen_cache_{args.dataset}.json")
 
     # -------------------------------------------------------------------
-    # Step 1: Collect activations (always PyTorch — needs hidden states)
+    # Step 1: Collect activations for all needed datasets
     # -------------------------------------------------------------------
-    if os.path.exists(act_cache):
-        print("--- Step 1: Loading cached activations ---")
-        cached = torch.load(act_cache, weights_only=False)
-        all_activations = cached["activations"]
-        meta = cached["meta"]
-        probe_layer = cached["probe_layer"]
-        print(f"  Loaded {len(all_activations)} cached activations")
+    print("--- Step 1: Collecting/loading activations ---")
+    device = get_device()
+    model_pt = None
+    tokenizer_pt = None
+    meta = None
+    probe_layer = None
+
+    all_activations = {}
+    for ds_name in all_ds_names:
+        act_cache = os.path.join(out_dir, f"_act_cache_{ds_name}.pt")
+        if os.path.exists(act_cache):
+            cached = torch.load(act_cache, weights_only=False)
+            all_activations.update(cached["activations"])
+            if meta is None:
+                meta = cached["meta"]
+                probe_layer = cached["probe_layer"]
+            print(f"  Loaded cached activations for {ds_name} ({len(cached['activations'])} entries)")
+        else:
+            # Need to run PyTorch model
+            if model_pt is None:
+                model_pt, tokenizer_pt, meta = load_model(args.model, device)
+                probe_layer = args.probe_layer or max(1, meta["num_layers"] // 8)
+            acts, meta, probe_layer = _collect_activations_for_dataset(
+                ds_name, all_ds_problems[ds_name], out_dir, styles,
+                model_pt, tokenizer_pt, meta, probe_layer, device
+            )
+            all_activations.update(acts)
+
+    if model_pt is not None:
+        del model_pt, tokenizer_pt
         model_pt = None
-    else:
-        print("--- Step 1: Collecting activations (PyTorch) ---")
-        device = get_device()
-        model_pt, tokenizer_pt, meta = load_model(args.model, device)
-        probe_layer = args.probe_layer or max(1, meta["num_layers"] // 8)
-
-        all_activations = {}
-        for i, prob in enumerate(tqdm(problems, desc="Activations")):
-            for style in styles:
-                prompt = PROMPT_STYLES[style](prob["prompt"])
-                prompt_fmt = format_prompt(prompt, tokenizer_pt, meta)
-                act = get_last_token_activation(
-                    model_pt, tokenizer_pt, prompt_fmt, probe_layer, device
-                )
-                all_activations[(str(prob["id"]), style)] = act
-            cleanup(device)
-
-            if (i + 1) % 20 == 0:
-                torch.save({"activations": all_activations, "meta": meta,
-                            "probe_layer": probe_layer}, act_cache)
-
-        torch.save({"activations": all_activations, "meta": meta,
-                    "probe_layer": probe_layer}, act_cache)
+        cleanup(device)
 
     print(f"  Probe layer: {probe_layer}")
     print(f"  Probe type: {args.probe_type}")
@@ -238,73 +329,68 @@ def main():
     # -------------------------------------------------------------------
     # Step 2: Generate code for all problems x styles
     # -------------------------------------------------------------------
+    print("--- Step 2: Generating code ---")
     all_gen_results = {}
-    if os.path.exists(gen_cache):
-        with open(gen_cache) as f:
-            all_gen_results = json.load(f)
-        print(f"--- Step 2: Loaded {len(all_gen_results)} cached generations ---")
 
-    # Find problems still needing generation
-    done_ids = set()
-    for key in all_gen_results:
-        pid = key.rsplit("|", 1)[0]
-        if all(f"{pid}|{s}" in all_gen_results for s in styles):
-            done_ids.add(pid)
-    remaining = [p for p in problems if str(p["id"]) not in done_ids]
-
-    if remaining:
-        print(f"--- Step 2: Generating {len(remaining)} problems ({args.backend}) ---")
-
-        # Free PyTorch model before loading MLX
-        if args.backend == "mlx" and model_pt is not None:
-            del model_pt, tokenizer_pt
-            model_pt = None
-            cleanup(device)
-
-        # Load generation model
-        if args.backend == "mlx":
-            model_gen, tok_gen, meta_gen, gen_device = load_for_generation(
-                args.model, "mlx"
-            )
-        elif model_pt is not None:
-            # Reuse already-loaded PyTorch model
-            model_gen, tok_gen, gen_device = model_pt, tokenizer_pt, device
-            meta_gen = meta
+    # Check which datasets need generation
+    needs_gen = []
+    for ds_name in all_ds_names:
+        gen_cache = os.path.join(out_dir, f"_gen_cache_{ds_name}.json")
+        if os.path.exists(gen_cache):
+            with open(gen_cache) as f:
+                cached_gen = json.load(f)
+            all_gen_results.update(cached_gen)
+            # Check completeness
+            ds_probs = all_ds_problems[ds_name]
+            done_ids = set()
+            for key in cached_gen:
+                pid = key.rsplit("|", 1)[0]
+                if all(f"{pid}|{s}" in cached_gen for s in styles):
+                    done_ids.add(pid)
+            remaining = [p for p in ds_probs if str(p["id"]) not in done_ids]
+            if remaining:
+                needs_gen.append((ds_name, remaining))
+            else:
+                print(f"  All generations cached for {ds_name}.")
         else:
-            model_gen, tok_gen, meta_gen, gen_device = load_for_generation(
-                args.model, "pytorch"
-            )
+            needs_gen.append((ds_name, all_ds_problems[ds_name]))
 
-        for i, prob in enumerate(tqdm(remaining, desc=f"Generating ({args.backend})")):
-            for style in styles:
-                prompt = PROMPT_STYLES[style](prob["prompt"])
-                prompt_fmt = format_prompt(prompt, tok_gen, meta)
-                generated = generate_code(
-                    model_gen, tok_gen, prompt_fmt, gen_device,
-                    backend=args.backend,
-                )
-                passed = check_correctness(generated, prob)
-                all_gen_results[f"{prob['id']}|{style}"] = bool(passed)
-            cleanup_gen(gen_device, args.backend)
+    if needs_gen:
+        total_remaining = sum(len(probs) for _, probs in needs_gen)
+        print(f"  Generating for {total_remaining} problems across "
+              f"{[n for n, _ in needs_gen]} ({args.backend})...")
 
-            if (i + 1) % 10 == 0:
-                with open(gen_cache, "w") as f:
-                    json.dump(all_gen_results, f)
+        model_gen, tok_gen, meta_gen, gen_device = load_for_generation(args.model, args.backend)
 
-        with open(gen_cache, "w") as f:
-            json.dump(all_gen_results, f)
+        for ds_name, remaining in needs_gen:
+            gen_cache = os.path.join(out_dir, f"_gen_cache_{ds_name}.json")
+            # Load any partial cache
+            partial = {}
+            if os.path.exists(gen_cache):
+                with open(gen_cache) as f:
+                    partial = json.load(f)
+
+            for i, prob in enumerate(tqdm(remaining, desc=f"Generating/{ds_name}")):
+                for style in styles:
+                    prompt = PROMPT_STYLES[style](prob["prompt"])
+                    prompt_fmt = format_prompt(prompt, tok_gen, meta)
+                    generated = generate_code(model_gen, tok_gen, prompt_fmt, gen_device,
+                                              backend=args.backend)
+                    passed = check_correctness(generated, prob)
+                    partial[f"{prob['id']}|{style}"] = bool(passed)
+                    all_gen_results[f"{prob['id']}|{style}"] = bool(passed)
+                cleanup_gen(gen_device, args.backend)
+                if (i + 1) % 10 == 0:
+                    with open(gen_cache, "w") as f:
+                        json.dump(partial, f)
+
+            with open(gen_cache, "w") as f:
+                json.dump(partial, f)
 
         del model_gen, tok_gen
-        if args.backend == "mlx":
-            cleanup_gen(gen_device, "mlx")
-        else:
-            cleanup(gen_device if 'gen_device' in dir() else None)
+        cleanup_gen(gen_device, args.backend)
     else:
-        # Free PyTorch model if still loaded
-        if model_pt is not None:
-            del model_pt, tokenizer_pt
-            cleanup(device)
-        print("  All generations cached.")
+        print("  All generations loaded from cache.")
 
     # Helper
     def get_passed(prob_id, style):
