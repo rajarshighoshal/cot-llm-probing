@@ -72,8 +72,8 @@ To understand \emph{why} CoT's effect varies, we perform layer-wise probing acro
 We study two code-specialized architectures, each in base and instruction-tuned variants:
 
 \begin{itemize}
-    \item \textbf{Qwen2.5-Coder-1.5B} (base) and \textbf{Qwen2.5-Coder-1.5B-Instruct}: 28 layers, 1.5B parameters, trained on code-heavy data.
-    \item \textbf{DeepSeek-Coder-1.3B} (base) and \textbf{DeepSeek-Coder-1.3B-Instruct}: 24 layers, 1.3B parameters.
+    \item \textbf{Qwen2.5-Coder-1.5B} \citep{hui2024qwen25coder} (base) and \textbf{Qwen2.5-Coder-1.5B-Instruct}: 28 layers, 1.5B parameters, trained on code-heavy data.
+    \item \textbf{DeepSeek-Coder-1.3B} \citep{guo2024deepseek} (base) and \textbf{DeepSeek-Coder-1.3B-Instruct}: 24 layers, 1.3B parameters.
 \end{itemize}
 
 This 2$\times$2 design (architecture $\times$ training regime) controls for model size and architecture when isolating the effect of instruction tuning. Instruction-tuned models receive chat-formatted prompts via their native templates.
