@@ -224,6 +224,8 @@ Results are presented in Table~\ref{tab:strategy}.
 
 The selection probe outperforms CoT on 6/8 settings and matches or beats Direct on 5/8, using only one forward pass regardless of style library size. On Qwen Instruct---where CoT is harmful---the probe achieves 53.7\% vs.\ 34.1\% CoT and 47.6\% Direct on HumanEval, recovering 8\% of the oracle gap. The remaining oracle gap reflects the fundamental ceiling of probe-based selection: the probe cannot manufacture solutions that no style would produce. Base model results are noisier due to lower absolute pass rates.
 
+\textbf{Latency overhead.} The probe forward pass takes 84ms on Qwen-1.5B (MPS), vs.\ 2584ms for generation---a \textbf{3.3\% overhead}. Since the probe replaces the need to generate with all 12 styles to find the best, it reduces total inference cost by up to 12$\times$ relative to exhaustive search.
+
 \section{Discussion}
 
 \textbf{Why Does Instruction Tuning Reverse CoT's Effect?} We hypothesize that base and instruction-tuned models interpret CoT prefixes through fundamentally different lenses. Base models, trained on raw code corpora, encounter CoT-like comments as \emph{documentation patterns} that precede implementations---the comment provides context that helps guide generation. Instruction-tuned models, trained to follow explicit instructions, interpret CoT as an \emph{imperative to reason before coding}. This additional reasoning step introduces noise: the model generates explanatory text that competes with code generation, leading to truncated or incorrect solutions.
