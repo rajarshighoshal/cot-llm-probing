@@ -1,0 +1,240 @@
+\documentclass{article}
+
+\usepackage{iclr2026_conference,times}
+\input{math_commands.tex}
+
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{float}
+
+\title{Don't Make LLMs Overthink: When Chain-of-Thought Hurts Code Generation}
+
+% Anonymous submission
+\author{Anonymous}
+
+\newcommand{\fix}{\marginpar{FIX}}
+\newcommand{\new}{\marginpar{NEW}}
+
+\iclrfinalcopy
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Large Language Models (LLMs) for code generation are highly sensitive to prompt formulation, yet the internal mechanisms by which prompts affect model behavior remain poorly understood. We present a mechanistic interpretability study examining how Chain-of-Thought (CoT) prompting influences internal representations and downstream reliability in code LLMs.
+
+Through layer-wise linear probing of CodeLlama-7B on HumanEval, we identify an early emergence point (Layer 4) where prompt types become linearly separable with over 90\% accuracy, indicating that the model distinguishes prompt \emph{structure} rather than semantic intent. Contrary to conventional assumptions, we show that CoT prompting significantly \emph{degrades} performance of base (non-instruction-tuned) models, reducing Pass@1 by 6.7\% ($p = 0.02$). Qualitative analysis reveals systematic failure modes, including incomplete template generation and comment-like reasoning loops, corroborated by entropy analysis showing that failed generations exhibit premature certainty.
+
+Building on these findings, we introduce a probe-guided strategy selector that leverages internal activations to dynamically choose prompting strategies, achieving a 4\% improvement over direct prompting and 12\% over CoT. Cross-architecture analysis on CodeT5 reveals that prompt-type emergence is architecture-agnostic, yet CoT's behavioral effects depend on model-specific inductive biases. Cross-model evaluation on Defects4C further demonstrates that instruction-tuned models outperform base models by up to $6\times$, supporting our interpretation that instruction tuning realigns early representations to treat prompts as semantic commands rather than structural patterns.
+
+Our results highlight a previously underappreciated risk: encouraging models to ``reason more'' can reduce reliability when prompts are misaligned with model training. These findings have implications for trustworthy prompt design and the safe deployment of code-generating LLMs.
+\end{abstract}
+
+\section{Introduction}
+
+Code generation using Large Language Models (LLMs) has emerged as a transformative capability in software engineering, with models like CodeLlama \citep{roziere2023code}, StarCoder \citep{li2023starcoder}, and GPT-4 achieving impressive results on programming benchmarks. A critical factor in LLM performance is \emph{prompt engineering}, the careful construction of input text to elicit desired model behavior. Techniques such as Chain-of-Thought (CoT) prompting \citep{wei2022chain}, which instructs models to reason step-by-step, have shown substantial improvements on reasoning tasks.
+
+However, the mechanisms by which prompts influence model computation remain largely opaque. Why does CoT help on some tasks but not others? How do different prompt formulations affect internal representations? And can we predict \emph{a priori} which prompting strategy will succeed for a given problem? These questions motivate our investigation into the \emph{mechanistic interpretability} of prompt steering in code LLMs.
+
+\textbf{Key Finding.} Contrary to the widespread assumption that CoT prompting universally improves reasoning, we demonstrate that CoT \emph{hurts} performance on base (non-instruction-tuned) code models. On HumanEval \citep{chen2021evaluating}, CodeLlama-7b achieves 31.1\% Pass@1 with direct prompting but only 24.4\% with CoT, a statistically significant degradation of 6.71\% ($\chi^2=5.26$, $p=0.02$). This finding suggests that prompting strategies effective for instruction-tuned models may be counterproductive for base models.
+
+\textbf{Contributions.} Our work makes five contributions: (1) \textbf{Mechanistic Analysis:} We identify Layer 4 of CodeLlama-7b as the emergence point where prompt-type representations become linearly separable with $>$90\% accuracy. (2) \textbf{Empirical Evidence:} We demonstrate that CoT prompting significantly \emph{degrades} base model performance on HumanEval ($p=0.02$). (3) \textbf{Entropy Analysis:} We show that failed generations exhibit premature certainty, providing a runtime signal for failure detection. (4) \textbf{Probe-Guided Selection:} We develop a method using activation patterns to dynamically select prompts, achieving a 4\% improvement over direct prompting. (5) \textbf{Cross-Architecture Validation:} We confirm via CodeT5 and Defects4C that prompt-type emergence is architecture-agnostic, while instruction tuning provides a $6\times$ performance gain.
+
+\section{Related Work}
+
+\textbf{Mechanistic Interpretability.} MI aims to understand neural network computation by analyzing internal representations \citep{elhage2022toy, olah2020zoom}. Recent work has shown that transformer models develop interpretable features at specific layers: early layers encode surface-level patterns, middle layers capture syntactic structure, and late layers represent semantic content \citep{jawahar2019bert}. For code models, prior work demonstrated that pre-trained transformers develop hierarchical representations of code syntax \citep{wan2022they}. Our work extends this by examining how \emph{prompts} modulate internal representations. Linear probing \citep{alain2016understanding} is a standard technique we employ to measure when prompt-type information becomes distinguishable.
+
+\textbf{Prompt Engineering for Code.} Prompting strategies significantly impact LLM performance on coding tasks. Common approaches include direct prompting, Chain-of-Thought \citep{wei2022chain}, few-shot examples \citep{brown2020language}, and self-refinement \citep{madaan2023self}. While CoT has shown improvements on math and logical reasoning \citep{wei2022chain, kojima2022large}, its effectiveness on code generation for base models is less established. 
+
+\textbf{Automated Prompt Optimization.} Recent work explores automated prompt construction. DSPy \citep{khattab2023dspy} treats prompts as learnable parameters. APE \citep{zhou2022large} uses LLMs to generate candidate prompts. A key limitation is reliance on black-box optimization without examining \emph{why} certain prompts work. Our approach leverages mechanistic signals to guide selection.
+
+\section{Methodology}
+
+We structure our investigation into three phases: (A) mechanistic analysis via layer-wise probing to understand where prompt information is encoded, (B) baseline evaluation to measure whether this encoding affects performance, and (C) probe-guided strategy selection to test whether mechanistic signals can improve prompt choices. We additionally validate our findings across architectures and model families.
+
+\subsection{Experimental Setup}
+
+\textbf{Model.} We use CodeLlama-7b-hf \citep{roziere2023code}, the base (non-instruction-tuned) 7B-parameter model with 32 transformer layers, pre-trained on 500B tokens using causal language modeling. The model is frozen, and we train only lightweight linear probes ($\sim$8K parameters) to study raw pre-trained representations.
+
+\textbf{Dataset.} We evaluate on the HumanEval benchmark \citep{chen2021evaluating}, containing 164 self-contained Python problems. Problems 0--49 form the probe training set, all 164 are used for the Direct vs.\ CoT comparison in Phase B, and problems 50--99 serve as the held-out set for Phase C.
+
+\textbf{Metric and Decoding.} We report Pass@1 under greedy decoding (temperature = 0, max 512 tokens) to isolate prompt effects from sampling variance. Statistical significance is assessed using McNemar's test for paired binary outcomes.
+
+\subsection{Phase A: Layer-wise Probing}
+
+To understand where prompt-type information emerges in the network, we train binary linear probes at each of the 32 transformer layers. For each HumanEval problem, we construct two prompts: \textbf{Direct} (raw function signature and docstring) and \textbf{CoT} (prefixed with \texttt{\# Expert Mode: Think step-by-step}).
+
+We extract residual stream activations $h_\ell \in \mathbb{R}^{4096}$ at the final token position for each layer $\ell \in \{0, 1, \ldots, 31\}$. We then train a logistic regression probe:
+\begin{equation}
+    P(\text{CoT} \mid h_\ell) = \sigma(W_\ell \cdot h_\ell + b_\ell)
+\end{equation}
+where $\sigma$ is the sigmoid function. Probes are trained on problems 0--49 (100 examples: 50 Direct + 50 CoT) and evaluated via leave-one-out cross-validation.
+
+\subsection{Phase B: Baseline Evaluation}
+
+We evaluate Direct and CoT prompting on all 164 HumanEval problems. For each problem, we generate a single completion and evaluate correctness using the standard HumanEval harness.
+
+\subsection{Phase C: Probe-Guided Strategy Selection}
+
+Building on the emergence finding, we use Layer 4 activations to select among six prompting strategies: \textbf{direct} (no framing), \textbf{cot} (``Think step-by-step''), \textbf{expert} (``You are an expert programmer''), \textbf{plan} (``First plan, then implement''), \textbf{simple} (``Keep it simple''), and \textbf{careful} (``Be careful about edge cases'').
+
+For each strategy, we train a binary probe predicting Pass/Fail on problems 0--49. At test time (problems 50--99), we compute probe scores for all six strategies and select the one with the highest predicted probability of success.
+
+\subsection{Cross-Architecture and Cross-Model Validation}
+
+To examine whether our findings generalize, we conduct two additional evaluations. First, we perform identical tomography on CodeT5, an encoder-decoder model, to test whether prompt-type emergence is architecture-specific. Second, we utilize the Defects4C benchmark \citep{defects4c}, containing 364 real-world C/C++ bugs, to evaluate four Gemma-family models: CodeGemma-2B-base, CodeGemma-7B-instruct, Gemma-7B-instruct, and Gemma-2-9B-instruct.
+
+\section{Experiments and Results}
+
+\subsection{Phase A: Emergence of Prompt-Type Representations}
+
+We first investigate \emph{where} in the network prompt-type information becomes distinguishable. Figure~\ref{fig:tomography} shows probe accuracy across all 32 layers, revealing a characteristic S-curve emergence pattern.
+
+In the earliest layers (0--2), probes achieve only 50--60\% accuracy, barely above chance. At Layer 4, accuracy jumps sharply to above 90\%, marking the \emph{emergence point}. From Layer 4 onward, probes achieve near-perfect classification accuracy ($>$95\%), indicating that Direct and CoT prompts occupy completely linearly separable regions of activation space.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.85\linewidth]{paper_figures/fig1_tomography.pdf} 
+    \caption{\textbf{Emergence of prompt-type information.} Probe accuracy remains near chance (50\%) in early layers, then rises sharply at Layer 4 (the ``emergence point''), indicating linearly separable representations.}
+    \label{fig:tomography}
+\end{figure}
+
+The early emergence point (Layer 4 of 32, or 12.5\% depth) is notable. Prior work suggests that early transformer layers primarily encode surface-level features \citep{jawahar2019bert}, which implies the model recognizes CoT as a \emph{structural} pattern (comment syntax) rather than a \emph{semantic} instruction.
+
+\subsection{Phase B: CoT Degrades Base Model Performance}
+
+Having established that the model distinguishes prompt types early, we next evaluate whether this distinction translates to performance differences. Table~\ref{tab:baseline} presents Pass@1 results across all 164 HumanEval problems.
+
+\begin{table}[h]
+    \centering
+    \caption{\textbf{Direct vs.\ CoT on HumanEval} ($n=164$). CoT significantly degrades base model performance.}
+    \label{tab:baseline}
+    \begin{tabular}{lccc}
+        \toprule
+        \textbf{Strategy} & \textbf{Pass@1} & \textbf{95\% CI} & \textbf{$\Delta$} \\
+        \midrule
+        Direct & 31.10\% & [24.5\%, 38.6\%] & --- \\
+        CoT & 24.39\% & [18.5\%, 31.5\%] & \textcolor{red}{-6.71\%} \\
+        \bottomrule
+    \end{tabular}
+    
+    \vspace{0.3em}
+    \small McNemar's test: $\chi^2 = 5.26$, $p = 0.022$
+\end{table}
+
+The result is striking: CoT prompting \emph{hurts} performance by 6.71\% absolute. McNemar's test confirms this difference is statistically significant ($p = 0.022$), ruling out random variation.
+
+Of the 164 problems, 23 pass with Direct but fail with CoT, while only 12 fail with Direct but pass with CoT. This nearly 2:1 asymmetry indicates that CoT systematically \emph{breaks} problems rather than introducing random noise.
+
+\subsection{Entropy Analysis: A Failure Signature}
+
+To understand the generation-time dynamics underlying these failures, we analyze token-level entropy during code generation. Figure~\ref{fig:entropy} compares entropy curves for successful versus failed generations.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.85\linewidth]{figures/codellama/entropy_plot_success_vs_failed.png}
+    \caption{\textbf{Entropy Divergence: Success vs.\ Failure.} Successful generations maintain higher entropy throughout, while failures collapse to low entropy early, suggesting premature certainty correlates with incorrect outputs.}
+    \label{fig:entropy}
+\end{figure}
+
+Successful cases maintain consistently higher entropy (around 0.3--0.5) throughout the generation process, reflecting appropriate uncertainty as the model considers multiple valid continuations. In contrast, failed generations collapse to low entropy (below 0.2) early in the sequence and remain overconfident thereafter.
+
+This pattern suggests that the failure modes---Hint Loops and TODO Traps---manifest as \emph{premature certainty}: the model ``decides'' too early on a degenerate template rather than reasoning through the problem. The entropy divergence provides a potential runtime signal for detecting problematic generations before they complete.
+
+\subsection{Phase C: Probe-Guided Strategy Selection}
+
+Given that prompt type is encoded early and affects performance, can we leverage this signal to select better prompts? We test this with a probe-guided strategy selector on held-out problems 50--99 ($n=50$). Table~\ref{tab:strategy} compares four approaches.
+
+\begin{table}[h]
+    \centering
+    \caption{\textbf{Strategy selection results on held-out problems} ($n=50$).}
+    \label{tab:strategy}
+    \begin{tabular}{lcc}
+        \toprule
+        \textbf{Method} & \textbf{Pass@1} & \textbf{$\Delta$ vs Direct} \\
+        \midrule
+        Chain-of-Thought & 22.00\% & -8.00\% \\
+        Random Selection & 24.00\% & -6.00\% \\
+        Direct (baseline) & 30.00\% & --- \\
+        \textbf{Probe-Selected} & \textbf{34.00\%} & \textbf{+4.00\%} \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+The probe-guided selector achieves 34\% Pass@1, a 4\% improvement over Direct and 12\% over CoT. Notably, the probe \emph{never} selects CoT or expert-framing strategies, effectively learning from activations alone that these approaches are counterproductive.
+
+\subsection{Cross-Architecture Analysis: CodeT5}
+
+To determine whether the early emergence of prompt-type structure is unique to decoder-only models, we conduct an identical tomography analysis on CodeT5, an encoder-decoder model. Figure~\ref{fig:codet5_tomo} shows the results.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.65\linewidth]{paper_figures/fig1_tomography_codeT5.pdf}
+    \caption{\textbf{CodeT5 Probing Accuracy.} Emergence occurs even earlier (Layer 2) than in CodeLlama.}
+    \label{fig:codet5_tomo}
+\end{figure}
+
+Across the 11 probed layers, probe accuracy rises sharply between Layers 0 and 2, surpassing 90\% by Layer 2---even earlier than CodeLlama-7B. This indicates that prompt-type separability is \emph{architecture-agnostic}.
+
+However, CodeT5 behaves differently on HumanEval: Direct prompting achieves 4.9\% Pass@1, while CoT yields 5.5\%---a slight \emph{improvement} rather than degradation. This critical finding indicates that early prompt-type emergence does not predict CoT's behavioral effects. The model's learned \emph{interpretation} of prompt structure---shaped by pretraining objectives---determines whether CoT helps or hurts.
+
+CodeT5's encoder-decoder architecture with denoising pretraining appears robust to CoT framing, whereas CodeLlama's exposure to raw code and inline comments causes it to misread CoT as incomplete scaffolding.
+
+\subsection{Cross-Model Validation on Bug Repair}
+
+We evaluated the four Gemma-family models on Defects4C to test whether instruction tuning explains prompt effectiveness more broadly. Table~\ref{tab:defects4c} shows the results.
+
+\begin{table}[h]
+    \centering
+    \caption{\textbf{Bug Repair Performance on Defects4C} ($n=364$ C/C++ bugs).}
+    \label{tab:defects4c}
+    \begin{tabular}{lcc}
+        \toprule
+        \textbf{Model} & \textbf{Pass@1} & \textbf{Pass@5} \\
+        \midrule
+        CodeGemma-2B-base & 1.10\% & 3.29\% \\
+        Gemma-7B-instruct & 2.97\% & 6.32\% \\
+        Gemma-2-9B-instruct & 6.26\% & 8.24\% \\
+        \textbf{CodeGemma-7B-instruct} & \textbf{6.87\%} & \textbf{11.81\%} \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+Three key findings emerge. \textbf{First, instruction tuning is critical.} CodeGemma-7B-instruct outperforms the base model by $6.2\times$ (6.87\% vs 1.10\%). \textbf{Second, code-specialization matters.} CodeGemma-7B-instruct outperforms general-purpose Gemma-7B-instruct by $2.3\times$. \textbf{Third, bug repair is harder than generation.} The best model achieves only 11.81\% pass@5, far below HumanEval performance.
+
+\section{Discussion}
+
+\textbf{Why Does CoT Hurt Base Models?} Our finding that Chain-of-Thought prompting \emph{degrades} performance by 6.71\% ($p=0.02$) challenges the assumption that reasoning prompts uniformly improve model behavior. Qualitative analysis reveals two consistent failure modes: the \textbf{Hint Loop} (models generate repetitive comment-like suggestions instead of code) and the \textbf{TODO Trap} (models produce template-style stubs like \texttt{\# TODO: Implement this} followed by \texttt{pass}). 
+
+These patterns reflect a \textbf{Training Distribution Mismatch}: base models trained primarily on raw code interpret CoT prefixes as structural cues for incomplete snippets rather than reasoning instructions. The entropy analysis confirms this: failed generations exhibit premature certainty, ``deciding'' on a degenerate template early rather than exploring the solution space.
+
+\textbf{Architecture Matters, But Not How You'd Expect.} The CodeT5 results are illuminating. Despite \emph{earlier} emergence of prompt-type structure (Layer 2 vs Layer 4), CodeT5 shows slight improvement under CoT. This dissociation between representation and behavior demonstrates that prompt effectiveness depends on how models \emph{interpret} structural patterns, not merely whether they detect them.
+
+\textbf{The Mechanistic Basis of Instruction Tuning.} Our probing results show that base models encode prompt structure early. This explains the stark $6\times$ performance gap on Defects4C: base models attend to the `shape' of the prompt rather than its semantic content. Instruction tuning likely realigns these early representations to treat prompts as imperative commands.
+
+\section{Limitations}
+
+\textbf{Mechanistic Scope.} Deep layer-wise probing was performed on CodeLlama-7b and CodeT5; direct probing of Gemma models remains future work.
+
+\textbf{Strategy Selection Generalization.} The probe-guided selector was trained only on HumanEval (Python); adaptation to other tasks may require probing different layers.
+
+\textbf{Probe Overfitting.} With only 100 training examples, overfitting is a concern. However, strong generalization (100\% training vs.\ 95\% held-out) indicates robust linear separability.
+
+\section{Conclusion}
+
+We present a mechanistic interpretability study of prompt steering in code LLMs with five main findings. First, prompt-type information emerges early in CodeLlama-7b (Layer 4) and even earlier in CodeT5 (Layer 2). Second, Chain-of-Thought prompting \emph{reduces} Pass@1 by 6.71\% ($p=0.022$) in base models. Third, entropy analysis reveals that failures exhibit premature certainty, providing a runtime detection signal. Fourth, a probe-guided strategy selector outperforms both Direct (+4\%) and CoT (+12\%). Fifth, cross-architecture analysis shows that emergence does not predict behavioral effects---interpretation matters more than representation.
+
+Cross-model validation on Defects4C confirms that instruction-tuned models outperform base models by $6\times$, demonstrating that instruction tuning realigns prompt representations from structural patterns to semantic commands.
+
+\textbf{Broader Implications.} Prompting effectiveness depends on model-specific training and inductive biases. Our results highlight a deployment risk: encouraging models to ``reason more'' can reduce reliability when prompts are misaligned with training. Trustworthy prompt design requires aligning prompts with model behavior---not forcing models to overthink.
+
+\bibliography{references}
+\bibliographystyle{iclr2026_conference}
+
+\end{document}

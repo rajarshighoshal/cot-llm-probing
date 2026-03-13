@@ -1,0 +1,21 @@
+# Core
+torch>=2.2.0
+transformers>=4.40.0
+accelerate>=0.27.0
+datasets
+huggingface_hub
+
+# Analysis
+numpy<2.0
+pandas
+scikit-learn
+scipy
+tqdm
+
+# Visualization
+matplotlib
+plotly
+kaleido
+
+# Evaluation
+evalplus

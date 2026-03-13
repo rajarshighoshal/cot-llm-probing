@@ -1,0 +1,858 @@
+id,case,prompt,direct_output,cot_output
+5,Direct_pass_CoT_fail,,"from typing import List
+
+
+def intersperse(numbers: List[int], delimeter: int) -> List[int]:
+    """""" Insert a number 'delimeter' between every two consecutive elements of input list `numbers'
+    >>> intersperse([], 4)
+    []
+    >>> intersperse([1, 2, 3], 4)
+    [1, 4, 2, 4, 3]
+    """"""
+    if len(numbers) == 0:
+        return []
+    if len(numbers) == 1:
+        return numbers
+    return [numbers[0]] + [delimeter] + intersperse(numbers[1:], delimeter)
+
+
+def intersperse_with_func(numbers: List[int], delimeter: int, func) -> List[int]:
+    """""" Insert a number 'delimeter' between every two consecutive elements of input list `numbers'
+    >>> intersperse([], 4)
+    []
+    >>> intersperse([1, 2, 3], 4)
+    [1, 4, 2, 4, 3]
+    """"""
+    if len(numbers) == 0:
+        return []
+    if len(numbers) == 1:
+        return numbers
+    return [numbers[0]] + [delimeter] + intersperse_with_func(numbers[1:], delimeter, func)
+
+
+def intersperse_with_func_2(numbers: List[int], delimeter: int, func) -> List[int]:
+    """""" Insert a number 'delimeter' between every two consecutive elements of input list `numbers'
+    >>> intersperse([], 4)
+    []
+    >>> intersperse([1, 2, 3], 4)
+    [1, 4, 2, 4, 3]
+    """"""
+    if len(numbers) == 0:
+        return []
+    if len(numbers) == 1:
+        return numbers
+    return [numbers[0]] + [delimeter] + intersperse_with_func_2(numbers[1:], delimeter, func)
+
+
+def intersperse_with_func_3(numbers: List[int], delimeter: int, func) -> List[int]:
+    """""" Insert a number 'delimeter' between every two consecutive elements of input list `numbers'
+    >>> intersperse([], 4)
+    []
+    >>> intersperse([1, 2, 3], 4)
+    [1, 4, 2, 4, 3]
+    """"""
+    if len(numbers) == 0:
+        return []
+    if len(numbers) == 1:
+        return numbers
+    return [numbers[0]] + [delimeter] + intersperse_with_func_3(numbers[1:], delimeter, func)
+
+
+def intersperse_with_func_4(numbers: List[int], delimeter: int, func) ->","# Expert Mode: Think step-by-step.
+from typing import List
+
+
+def intersperse(numbers: List[int], delimeter: int) -> List[int]:
+    """""" Insert a number 'delimeter' between every two consecutive elements of input list `numbers'
+    >>> intersperse([], 4)
+    []
+    >>> intersperse([1, 2, 3], 4)
+    [1, 4, 2, 4, 3]
+    """"""
+    # TODO: Implement this function
+    # Hint: Use the built-in function 'list.insert'
+    # Hint: Use the built-in function 'list.append'
+    # Hint: Use the built-in function 'list.pop'
+    # Hint: Use the built-in function 'list.extend'
+    # Hint: Use the built-in function 'list.remove'
+    # Hint: Use the built-in function 'list.clear'
+    # Hint: Use the built-in function 'list.copy'
+    # Hint: Use the built-in function 'list.reverse'
+    # Hint: Use the built-in function 'list.sort'
+    # Hint: Use the built-in function 'list.index'
+    # Hint: Use the built-in function 'list.count'
+    # Hint: Use the built-in function 'list.pop'
+    # Hint: Use the built-in function 'list.remove'
+    # Hint: Use the built-in function 'list.clear'
+    # Hint: Use the built-in function 'list.copy'
+    # Hint: Use the built-in function 'list.reverse'
+    # Hint: Use the built-in function 'list.sort'
+    # Hint: Use the built-in function 'list.index'
+    # Hint: Use the built-in function 'list.count'
+    # Hint: Use the built-in function 'list.pop'
+    # Hint: Use the built-in function 'list.remove'
+    # Hint: Use the built-in function 'list.clear'
+    # Hint: Use the built-in function 'list.copy'
+    # Hint: Use the built-in function 'list.reverse'
+    # Hint: Use the built-in function 'list.sort'
+    # Hint: Use the built-in function 'list.index'
+    # Hint: Use the built-in function 'list.count'
+    # Hint: Use the built-in function 'list.pop'
+    # Hint: Use the built-in function 'list.remove'
+    # Hint: Use the built-in function 'list.clear'
+    # Hint: Use the built-in function 'list.copy'
+    # Hint: Use the built-in function 'list.reverse'
+    # Hint: Use the built-in function 'list.sort'
+    # Hint: Use the built-in function 'list.index'
+    # Hint: Use the built-in function 'list"
+12,Direct_pass_CoT_fail,,"from typing import List, Optional
+
+
+def longest(strings: List[str]) -> Optional[str]:
+    """""" Out of list of strings, return the longest one. Return the first one in case of multiple
+    strings of the same length. Return None in case the input list is empty.
+    >>> longest([])
+
+    >>> longest(['a', 'b', 'c'])
+    'a'
+    >>> longest(['a', 'bb', 'ccc'])
+    'ccc'
+    """"""
+    if not strings:
+        return None
+    longest_string = strings[0]
+    for string in strings:
+        if len(string) > len(longest_string):
+            longest_string = string
+    return longest_string
+
+
+def longest_2(strings: List[str]) -> Optional[str]:
+    """""" Out of list of strings, return the longest one. Return the first one in case of multiple
+    strings of the same length. Return None in case the input list is empty.
+    >>> longest([])
+
+    >>> longest(['a', 'b', 'c'])
+    'a'
+    >>> longest(['a', 'bb', 'ccc'])
+    'ccc'
+    """"""
+    if not strings:
+        return None
+    longest_string = strings[0]
+    for string in strings:
+        if len(string) > len(longest_string):
+            longest_string = string
+    return longest_string
+
+
+def longest_3(strings: List[str]) -> Optional[str]:
+    """""" Out of list of strings, return the longest one. Return the first one in case of multiple
+    strings of the same length. Return None in case the input list is empty.
+    >>> longest([])
+
+    >>> longest(['a', 'b', 'c'])
+    'a'
+    >>> longest(['a', 'bb', 'ccc'])
+    'ccc'
+    """"""
+    if not strings:
+        return None
+    longest_string = strings[0]
+    for string in strings:
+        if len(string) > len(longest_string):
+            longest_string = string
+    return longest_string
+
+
+def longest_4(strings: List[str]) -> Optional[str]:
+    """""" Out of list of strings, return the longest one. Return the first one in case of multiple
+    strings of the same length. Return None in case the input list is empty.
+    >>> longest([])
+
+    >>> longest(['a', 'b', 'c'])
+    'a'
+    >>> longest(['a', 'bb', 'ccc'])
+    'ccc'
+    """"""
+    if not strings:
+        return None
+    longest_string = strings[0]
+    for string in strings:
+        if len(string) > len(longest_string):
+            longest_string = string
+    return longest_string
+
+
+def longest_5(strings: List[str]) -> Optional[str]:
+    """""" Out of list of strings, return the longest one. Return the first one in case of multiple
+    strings of the same length. Return None in case the input list is empty.
+    >>> longest([])
+","# Expert Mode: Think step-by-step.
+from typing import List, Optional
+
+
+def longest(strings: List[str]) -> Optional[str]:
+    """""" Out of list of strings, return the longest one. Return the first one in case of multiple
+    strings of the same length. Return None in case the input list is empty.
+    >>> longest([])
+
+    >>> longest(['a', 'b', 'c'])
+    'a'
+    >>> longest(['a', 'bb', 'ccc'])
+    'ccc'
+    """"""
+    # TODO: Implement this function
+    # Hint: Use a loop to iterate over the list of strings.
+    # Hint: Use a variable to keep track of the longest string.
+    # Hint: Use a variable to keep track of the length of the longest string.
+    # Hint: Use a variable to keep track of the index of the longest string.
+    # Hint: Use a variable to keep track of the length of the current string.
+    # Hint: Use a variable to keep track of the index of the current string.
+    # Hint: Use a variable to keep track of the index of the current string.
+    # Hint: Use a variable to keep track of the index of the current string.
+    # Hint: Use a variable to keep track of the index of the current string.
+    # Hint: Use a variable to keep track of the index of the current string.
+    # Hint: Use a variable to keep track of the index of the current string.
+    # Hint: Use a variable to keep track of the index of the current string.
+    # Hint: Use a variable to keep track of the index of the current string.
+    # Hint: Use a variable to keep track of the index of the current string.
+    # Hint: Use a variable to keep track of the index of the current string.
+    # Hint: Use a variable to keep track of the index of the current string.
+    # Hint: Use a variable to keep track of the index of the current string.
+    # Hint: Use a variable to keep track of the index of the current string.
+    # Hint: Use a variable to keep track of the index of the current string.
+    # Hint: Use a variable to keep track of the index of the current string.
+    # Hint: Use a variable to keep track of the index of the current string.
+    # Hint: Use a variable to keep track of the index of the current string.
+    # Hint: Use a variable to keep track of the index of the current string.
+    # Hint: Use a variable to keep track of the index of the current string.
+    # Hint: Use a variable to keep track of the index of the current string.
+    # Hint: Use a variable to keep track of the index of the current string.
+    # Hint: Use a variable to keep track of the index of the current string.
+    # Hint: Use a variable to keep track of the index of the current string.
+    # Hint: Use a variable to keep track of the index of the current string.
+    # Hint: Use a variable to keep track of the index of the current"
+16,Direct_pass_CoT_fail,,"
+
+def count_distinct_characters(string: str) -> int:
+    """""" Given a string, find out how many distinct characters (regardless of case) does it consist of
+    >>> count_distinct_characters('xyzXYZ')
+    3
+    >>> count_distinct_characters('Jerry')
+    4
+    """"""
+    return len(set(string.lower()))
+
+
+def count_distinct_characters_2(string: str) -> int:
+    """""" Given a string, find out how many distinct characters (regardless of case) does it consist of
+    >>> count_distinct_characters_2('xyzXYZ')
+    3
+    >>> count_distinct_characters_2('Jerry')
+    4
+    """"""
+    return len(set(string.lower()))
+
+
+def count_distinct_characters_3(string: str) -> int:
+    """""" Given a string, find out how many distinct characters (regardless of case) does it consist of
+    >>> count_distinct_characters_3('xyzXYZ')
+    3
+    >>> count_distinct_characters_3('Jerry')
+    4
+    """"""
+    return len(set(string.lower()))
+
+
+def count_distinct_characters_4(string: str) -> int:
+    """""" Given a string, find out how many distinct characters (regardless of case) does it consist of
+    >>> count_distinct_characters_4('xyzXYZ')
+    3
+    >>> count_distinct_characters_4('Jerry')
+    4
+    """"""
+    return len(set(string.lower()))
+
+
+def count_distinct_characters_5(string: str) -> int:
+    """""" Given a string, find out how many distinct characters (regardless of case) does it consist of
+    >>> count_distinct_characters_5('xyzXYZ')
+    3
+    >>> count_distinct_characters_5('Jerry')
+    4
+    """"""
+    return len(set(string.lower()))
+
+
+def count_distinct_characters_6(string: str) -> int:
+    """""" Given a string, find out how many distinct characters (regardless of case) does it consist of
+    >>> count_distinct_characters_6('xyzXYZ')
+    3
+    >>> count_distinct_characters_6('Jerry')
+    4
+    """"""
+    return len(set(string.lower()))
+
+
+def count_distinct_characters_7(string: str) -> int:
+    """""" Given a string, find out how many distinct characters (regardless of case) does it consist of
+    >>> count_distinct_characters_7('xyzXYZ')
+    3
+    >>> count_distinct_characters_7('Jerry')
+    4
+    """"""
+    return len(set(","# Expert Mode: Think step-by-step.
+
+
+def count_distinct_characters(string: str) -> int:
+    """""" Given a string, find out how many distinct characters (regardless of case) does it consist of
+    >>> count_distinct_characters('xyzXYZ')
+    3
+    >>> count_distinct_characters('Jerry')
+    4
+    """"""
+    # TODO: Implement this function
+    return len(set(string.lower()))
+
+
+def count_distinct_characters_2(string: str) -> int:
+    """""" Given a string, find out how many distinct characters (regardless of case) does it consist of
+    >>> count_distinct_characters_2('xyzXYZ')
+    3
+    >>> count_distinct_characters_2('Jerry')
+    4
+    """"""
+    # TODO: Implement this function
+    return len(set(string.lower()))
+
+
+def count_distinct_characters_3(string: str) -> int:
+    """""" Given a string, find out how many distinct characters (regardless of case) does it consist of
+    >>> count_distinct_characters_3('xyzXYZ')
+    3
+    >>> count_distinct_characters_3('Jerry')
+    4
+    """"""
+    # TODO: Implement this function
+    return len(set(string.lower()))
+
+
+def count_distinct_characters_4(string: str) -> int:
+    """""" Given a string, find out how many distinct characters (regardless of case) does it consist of
+    >>> count_distinct_characters_4('xyzXYZ')
+    3
+    >>> count_distinct_characters_4('Jerry')
+    4
+    """"""
+    # TODO: Implement this function
+    return len(set(string.lower()))
+
+
+def count_distinct_characters_5(string: str) -> int:
+    """""" Given a string, find out how many distinct characters (regardless of case) does it consist of
+    >>> count_distinct_characters_5('xyzXYZ')
+    3
+    >>> count_distinct_characters_5('Jerry')
+    4
+    """"""
+    # TODO: Implement this function
+    return len(set(string.lower()))
+
+
+def count_distinct_characters_6(string: str) -> int:
+    """""" Given a string, find out how many distinct characters (regardless of case) does it consist of
+    >>> count_distinct_characters_6('xyzXYZ')
+    3
+    >>> count_distinct_characters_6('Jerry')
+    4
+    """"""
+    # TODO: Implement this function
+    return len(set(string.lower()))
+
+
+def count_distinct_characters_7(string: str) -> int:
+    """""" Given a string, find out how many distinct characters (regardless of case)"
+18,Direct_pass_CoT_fail,,"
+
+def how_many_times(string: str, substring: str) -> int:
+    """""" Find how many times a given substring can be found in the original string. Count overlaping cases.
+    >>> how_many_times('', 'a')
+    0
+    >>> how_many_times('aaa', 'a')
+    3
+    >>> how_many_times('aaaa', 'aa')
+    3
+    """"""
+    if not substring:
+        return 0
+    if not string:
+        return 0
+    if len(substring) > len(string):
+        return 0
+    count = 0
+    for i in range(len(string) - len(substring) + 1):
+        if string[i:i + len(substring)] == substring:
+            count += 1
+    return count
+
+
+def how_many_times_no_overlap(string: str, substring: str) -> int:
+    """""" Find how many times a given substring can be found in the original string. Do not count overlaping cases.
+    >>> how_many_times_no_overlap('', 'a')
+    0
+    >>> how_many_times_no_overlap('aaa', 'a')
+    1
+    >>> how_many_times_no_overlap('aaaa', 'aa')
+    1
+    """"""
+    if not substring:
+        return 0
+    if not string:
+        return 0
+    if len(substring) > len(string):
+        return 0
+    count = 0
+    for i in range(len(string) - len(substring) + 1):
+        if string[i:i + len(substring)] == substring:
+            if i + len(substring) == len(string):
+                count += 1
+            else:
+                if string[i + len(substring)] != substring[0]:
+                    count += 1
+    return count
+
+
+def how_many_times_no_overlap_2(string: str, substring: str) -> int:
+    """""" Find how many times a given substring can be found in the original string. Do not count overlaping cases.
+    >>> how_many_times_no_overlap_2('', 'a')
+    0
+    >>> how_many_times_no_overlap_2('aaa', 'a')
+    1
+    >>> how_many_times_no_overlap_2('aaaa', 'aa')
+    1
+    """"""
+    if not substring:
+        return 0
+    if not string:
+        return 0
+    if len(substring) > len(string):
+        return 0
+    count = 0
+    for i in range(len(string) - len(substring) + 1):
+        if string[i:i + len(substring)] == substring:
+            if i + len(substring) == len(string):
+                count += 1
+            else:
+                if string[i + len(substring)] != substring[0]:
+                    count += 1
+   ","# Expert Mode: Think step-by-step.
+
+
+def how_many_times(string: str, substring: str) -> int:
+    """""" Find how many times a given substring can be found in the original string. Count overlaping cases.
+    >>> how_many_times('', 'a')
+    0
+    >>> how_many_times('aaa', 'a')
+    3
+    >>> how_many_times('aaaa', 'aa')
+    3
+    """"""
+    return len(string) - len(string.replace(substring, ''))
+
+
+def how_many_times_no_overlap(string: str, substring: str) -> int:
+    """""" Find how many times a given substring can be found in the original string. Do not count overlaping cases.
+    >>> how_many_times_no_overlap('', 'a')
+    0
+    >>> how_many_times_no_overlap('aaa', 'a')
+    1
+    >>> how_many_times_no_overlap('aaaa', 'aa')
+    1
+    """"""
+    return len(string) - len(string.replace(substring, '', 1))
+
+
+def how_many_times_no_overlap_2(string: str, substring: str) -> int:
+    """""" Find how many times a given substring can be found in the original string. Do not count overlaping cases.
+    >>> how_many_times_no_overlap_2('', 'a')
+    0
+    >>> how_many_times_no_overlap_2('aaa', 'a')
+    1
+    >>> how_many_times_no_overlap_2('aaaa', 'aa')
+    1
+    """"""
+    return len(string) - len(string.replace(substring, '', 1))
+
+
+def how_many_times_no_overlap_3(string: str, substring: str) -> int:
+    """""" Find how many times a given substring can be found in the original string. Do not count overlaping cases.
+    >>> how_many_times_no_overlap_3('', 'a')
+    0
+    >>> how_many_times_no_overlap_3('aaa', 'a')
+    1
+    >>> how_many_times_no_overlap_3('aaaa', 'aa')
+    1
+    """"""
+    return len(string) - len(string.replace(substring, '', 1))
+
+
+def how_many_times_no_overlap_4(string: str, substring: str) -> int:
+    """""" Find how many times a given substring can be found in the original string. Do not count overlaping cases.
+    >>> how_many_times_no_overlap_4('', 'a')
+    0
+    >>> how_many_times_no_overlap_4('aaa', 'a')
+    1
+    >>> how_many_times_no_overlap_4('aaaa', 'aa')
+    1
+    """"""
+    return len(string) - len(string.replace(substring, '', 1"
+21,Direct_pass_CoT_fail,,"from typing import List
+
+
+def rescale_to_unit(numbers: List[float]) -> List[float]:
+    """""" Given list of numbers (of at least two elements), apply a linear transform to that list,
+    such that the smallest number will become 0 and the largest will become 1
+    >>> rescale_to_unit([1.0, 2.0, 3.0, 4.0, 5.0])
+    [0.0, 0.25, 0.5, 0.75, 1.0]
+    """"""
+    if len(numbers) < 2:
+        raise ValueError(""List of numbers must have at least two elements"")
+    min_val = min(numbers)
+    max_val = max(numbers)
+    return [(x - min_val) / (max_val - min_val) for x in numbers]
+
+
+def rescale_to_unit_with_min_max(numbers: List[float], min_val: float, max_val: float) -> List[float]:
+    """""" Given list of numbers (of at least two elements), apply a linear transform to that list,
+    such that the smallest number will become min_val and the largest will become max_val
+    >>> rescale_to_unit_with_min_max([1.0, 2.0, 3.0, 4.0, 5.0], 0.0, 1.0)
+    [0.0, 0.25, 0.5, 0.75, 1.0]
+    """"""
+    if len(numbers) < 2:
+        raise ValueError(""List of numbers must have at least two elements"")
+    return [(x - min(numbers)) / (max(numbers) - min(numbers)) * (max_val - min_val) + min_val for x in numbers]
+
+
+def rescale_to_unit_with_min_max_and_offset(numbers: List[float], min_val: float, max_val: float, offset: float) -> List[float]:
+    """""" Given list of numbers (of at least two elements), apply a linear transform to that list,
+    such that the smallest number will become min_val and the largest will become max_val
+    >>> rescale_to_unit_with_min_max_and_offset([1.0, 2.0, 3.0, 4.0, 5.0], 0.0, 1.0, 0.5)
+    [0.5, 1.0, 1.5, 2.0, 2.5]
+    """"""
+    if len(numbers) < 2:
+        raise ValueError(""List of numbers must have at least two elements"")
+    return [(x - min(numbers)) / (max(numbers) - min(numbers)) * (max_val - min_val) + min_val + offset for x in numbers]
+
+
+def rescale_to_unit_with_min_max_and_offset_and_scale(numbers: List[float], min_val: float, max_val: float, offset:","# Expert Mode: Think step-by-step.
+from typing import List
+
+
+def rescale_to_unit(numbers: List[float]) -> List[float]:
+    """""" Given list of numbers (of at least two elements), apply a linear transform to that list,
+    such that the smallest number will become 0 and the largest will become 1
+    >>> rescale_to_unit([1.0, 2.0, 3.0, 4.0, 5.0])
+    [0.0, 0.25, 0.5, 0.75, 1.0]
+    """"""
+    # TODO: implement this function
+    # HINT: you can use the built-in min() and max() functions
+    # HINT: you can use the built-in range() function
+    # HINT: you can use the built-in len() function
+    # HINT: you can use the built-in list() function
+    # HINT: you can use the built-in float() function
+    # HINT: you can use the built-in map() function
+    # HINT: you can use the built-in lambda function
+    # HINT: you can use the built-in list comprehension
+    # HINT: you can use the built-in math.fabs() function
+    # HINT: you can use the built-in math.fabs() function
+    # HINT: you can use the built-in math.fabs() function
+    # HINT: you can use the built-in math.fabs() function
+    # HINT: you can use the built-in math.fabs() function
+    # HINT: you can use the built-in math.fabs() function
+    # HINT: you can use the built-in math.fabs() function
+    # HINT: you can use the built-in math.fabs() function
+    # HINT: you can use the built-in math.fabs() function
+    # HINT: you can use the built-in math.fabs() function
+    # HINT: you can use the built-in math.fabs() function
+    # HINT: you can use the built-in math.fabs() function
+    # HINT: you can use the built-in math.fabs() function
+    # HINT: you can use the built-in math.fabs() function
+    # HINT: you can use the built-in math.fabs() function
+    # HINT: you can use the built-in math.fabs() function
+    # HINT: you can use the built-in math.fabs() function
+    # HINT: you can use the built-in math.fabs() function
+    # HINT: you can use the built-in math.fabs() function
+    # HINT: you can use the built-in math.fabs() function
+    # HINT: you can use the built-in math.fabs() function
+    # HINT: you can use the built-in math.fabs() function
+    # HINT: you can use the built-in math.fabs() function
+    # HINT: you can use the built-in math.fabs() function
+    # HINT: you"
+40,Direct_pass_CoT_fail,,"
+
+def triples_sum_to_zero(l: list):
+    """"""
+    triples_sum_to_zero takes a list of integers as an input.
+    it returns True if there are three distinct elements in the list that
+    sum to zero, and False otherwise.
+
+    >>> triples_sum_to_zero([1, 3, 5, 0])
+    False
+    >>> triples_sum_to_zero([1, 3, -2, 1])
+    True
+    >>> triples_sum_to_zero([1, 2, 3, 7])
+    False
+    >>> triples_sum_to_zero([2, 4, -5, 3, 9, 7])
+    True
+    >>> triples_sum_to_zero([1])
+    False
+    """"""
+    # your code here
+    if len(l) < 3:
+        return False
+    l.sort()
+    for i in range(len(l) - 2):
+        if l[i] + l[i + 1] + l[i + 2] == 0:
+            return True
+    return False
+
+
+if __name__ == ""__main__"":
+    import doctest
+
+    doctest.testmod()
+","# Expert Mode: Think step-by-step.
+
+
+def triples_sum_to_zero(l: list):
+    """"""
+    triples_sum_to_zero takes a list of integers as an input.
+    it returns True if there are three distinct elements in the list that
+    sum to zero, and False otherwise.
+
+    >>> triples_sum_to_zero([1, 3, 5, 0])
+    False
+    >>> triples_sum_to_zero([1, 3, -2, 1])
+    True
+    >>> triples_sum_to_zero([1, 2, 3, 7])
+    False
+    >>> triples_sum_to_zero([2, 4, -5, 3, 9, 7])
+    True
+    >>> triples_sum_to_zero([1])
+    False
+    """"""
+    # Your code here
+    pass
+
+
+def triples_sum_to_zero_2(l: list):
+    """"""
+    triples_sum_to_zero_2 takes a list of integers as an input.
+    it returns True if there are three distinct elements in the list that
+    sum to zero, and False otherwise.
+
+    >>> triples_sum_to_zero_2([1, 3, 5, 0])
+    False
+    >>> triples_sum_to_zero_2([1, 3, -2, 1])
+    True
+    >>> triples_sum_to_zero_2([1, 2, 3, 7])
+    False
+    >>> triples_sum_to_zero_2([2, 4, -5, 3, 9, 7])
+    True
+    >>> triples_sum_to_zero_2([1])
+    False
+    """"""
+    # Your code here
+    pass
+
+
+def triples_sum_to_zero_3(l: list):
+    """"""
+    triples_sum_to_zero_3 takes a list of integers as an input.
+    it returns True if there are three distinct elements in the list that
+    sum to zero, and False otherwise.
+
+    >>> triples_sum_to_zero_3([1, 3, 5, 0])
+    False
+    >>> triples_sum_to_zero_3([1, 3, -2, 1])
+    True
+    >>> triples_sum_to_zero_3([1, 2, 3, 7])
+    False
+    >>> triples_sum_to_zero_3([2, 4, -5, 3, 9, 7])
+    True
+    >>> triples_sum_to_zero_3([1])
+    False
+    """"""
+    # Your code here
+    pass
+
+
+def triples_sum_to_zero_4(l: list):
+    """"""
+    triples_sum_to_zero_4 takes a list of integers as an input.
+    it returns True if there are three distinct elements in the list that
+    sum to zero, and False otherwise.
+
+    >>> triples_sum_to_zero_4([1, 3, 5, 0])
+    False
+    >>> triples_sum_to_zero_4([1, 3, -2, 1])
+    True
+    >>> triples_sum_to_zero_4([1, 2, 3, 7])
+    False
+    >>>"
+43,Direct_pass_CoT_fail,,"
+
+def pairs_sum_to_zero(l):
+    """"""
+    pairs_sum_to_zero takes a list of integers as an input.
+    it returns True if there are two distinct elements in the list that
+    sum to zero, and False otherwise.
+    >>> pairs_sum_to_zero([1, 3, 5, 0])
+    False
+    >>> pairs_sum_to_zero([1, 3, -2, 1])
+    False
+    >>> pairs_sum_to_zero([1, 2, 3, 7])
+    False
+    >>> pairs_sum_to_zero([2, 4, -5, 3, 5, 7])
+    True
+    >>> pairs_sum_to_zero([1])
+    False
+    """"""
+    # your code here
+    if len(l) < 2:
+        return False
+    else:
+        for i in range(len(l)):
+            for j in range(i+1, len(l)):
+                if l[i] + l[j] == 0:
+                    return True
+    return False
+
+
+def pairs_sum_to_zero_2(l):
+    """"""
+    pairs_sum_to_zero_2 takes a list of integers as an input.
+    it returns True if there are two distinct elements in the list that
+    sum to zero, and False otherwise.
+    >>> pairs_sum_to_zero_2([1, 3, 5, 0])
+    False
+    >>> pairs_sum_to_zero_2([1, 3, -2, 1])
+    False
+    >>> pairs_sum_to_zero_2([1, 2, 3, 7])
+    False
+    >>> pairs_sum_to_zero_2([2, 4, -5, 3, 5, 7])
+    True
+    >>> pairs_sum_to_zero_2([1])
+    False
+    """"""
+    # your code here
+    if len(l) < 2:
+        return False
+    else:
+        d = {}
+        for i in l:
+            if i in d:
+                return True
+            else:
+                d[0 - i] = True
+    return False
+
+
+def pairs_sum_to_zero_3(l):
+    """"""
+    pairs_sum_to_zero_3 takes a list of integers as an input.
+    it returns True if there are two distinct elements in the list that
+    sum to zero, and False otherwise.
+    >>> pairs_sum_to_zero_3([1, 3, 5, 0])
+    False
+    >>> pairs_sum_to_zero_3([1, 3, -2, 1])
+    False
+    >>> pairs_sum_to_zero_3([1, 2, 3, 7])
+    False
+    >>> pairs_sum_to_zero_3([2, 4, -5, 3, 5, 7])
+    True
+    >>> pairs_sum_to_zero_3([1])
+    False
+    """"""
+    # your code here
+    if len(l) < 2:
+        return False
+    else:
+        d = {}
+        for i in l:
+            if i in d:
+                return True
+            else:
+                d[i] = True
+","# Expert Mode: Think step-by-step.
+
+
+def pairs_sum_to_zero(l):
+    """"""
+    pairs_sum_to_zero takes a list of integers as an input.
+    it returns True if there are two distinct elements in the list that
+    sum to zero, and False otherwise.
+    >>> pairs_sum_to_zero([1, 3, 5, 0])
+    False
+    >>> pairs_sum_to_zero([1, 3, -2, 1])
+    False
+    >>> pairs_sum_to_zero([1, 2, 3, 7])
+    False
+    >>> pairs_sum_to_zero([2, 4, -5, 3, 5, 7])
+    True
+    >>> pairs_sum_to_zero([1])
+    False
+    """"""
+    # Your code here
+    pass
+
+
+def pairs_sum_to_k(l, k):
+    """"""
+    pairs_sum_to_k takes a list of integers as an input.
+    it returns True if there are two distinct elements in the list that
+    sum to k, and False otherwise.
+    >>> pairs_sum_to_k([1, 3, 5, 0], 0)
+    False
+    >>> pairs_sum_to_k([1, 3, -2, 1], 0)
+    True
+    >>> pairs_sum_to_k([1, 2, 3, 7], 7)
+    True
+    >>> pairs_sum_to_k([2, 4, -5, 3, 5, 7], 7)
+    True
+    >>> pairs_sum_to_k([1], 0)
+    False
+    """"""
+    # Your code here
+    pass
+
+
+def pairs_sum_to_k_with_duplicates(l, k):
+    """"""
+    pairs_sum_to_k_with_duplicates takes a list of integers as an input.
+    it returns True if there are two distinct elements in the list that
+    sum to k, and False otherwise.
+    >>> pairs_sum_to_k_with_duplicates([1, 3, 5, 0], 0)
+    False
+    >>> pairs_sum_to_k_with_duplicates([1, 3, -2, 1], 0)
+    True
+    >>> pairs_sum_to_k_with_duplicates([1, 2, 3, 7], 7)
+    True
+    >>> pairs_sum_to_k_with_duplicates([2, 4, -5, 3, 5, 7], 7)
+    True
+    >>> pairs_sum_to_k_with_duplicates([1], 0)
+    False
+    """"""
+    # Your code here
+    pass
+
+
+def pairs_sum_to_k_with_duplicates_and_negatives(l, k):
+    """"""
+    pairs_sum_to_k_with_duplicates_and_negatives takes a list of integers as an input.
+    it returns True if there are two distinct elements in the list that
+    sum to k, and False otherwise.
+    >>> pairs_sum_to_k_with_duplicates_and_negatives([1, 3, 5, 0], 0)
+    False
+    >>> pairs_sum_to_k_with_duplicates"
