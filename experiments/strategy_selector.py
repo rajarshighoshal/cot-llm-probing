@@ -203,8 +203,8 @@ def _generate_for_dataset(ds_name, problems, out_dir, styles, model_gen, tok_gen
             for style in styles:
                 prompt = PROMPT_STYLES[style](prob["prompt"])
                 prompt_fmt = format_prompt(prompt, tok_gen, meta)
-                generated = generate_code(model_gen, tok_gen, prompt_fmt, gen_device,
-                                          backend=backend)
+                generated, _, _ = generate_code(model_gen, tok_gen, prompt_fmt, gen_device,
+                                                backend=backend)
                 passed = check_correctness(generated, prob)
                 gen_results[f"{prob['id']}|{style}"] = bool(passed)
             cleanup_gen(gen_device, backend)
@@ -374,8 +374,8 @@ def main():
                 for style in styles:
                     prompt = PROMPT_STYLES[style](prob["prompt"])
                     prompt_fmt = format_prompt(prompt, tok_gen, meta)
-                    generated = generate_code(model_gen, tok_gen, prompt_fmt, gen_device,
-                                              backend=args.backend)
+                    generated, _, _ = generate_code(model_gen, tok_gen, prompt_fmt, gen_device,
+                                                    backend=args.backend)
                     passed = check_correctness(generated, prob)
                     partial[f"{prob['id']}|{style}"] = bool(passed)
                     all_gen_results[f"{prob['id']}|{style}"] = bool(passed)

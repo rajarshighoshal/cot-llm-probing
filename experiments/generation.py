@@ -63,7 +63,10 @@ def _generate_pytorch(model, tokenizer, prompt, device, max_new_tokens=512):
             eos_token_id=eos_ids,
         )
     generated = output[0, tokens["input_ids"].shape[1]:]
-    return tokenizer.decode(generated, skip_special_tokens=True)
+    n_tokens = int(generated.shape[0])
+    text = tokenizer.decode(generated, skip_special_tokens=True)
+    truncated = n_tokens >= max_new_tokens
+    return text, n_tokens, truncated
 
 
 def _cleanup_pytorch(device):
@@ -76,7 +79,11 @@ def _cleanup_pytorch(device):
 # ---------------------------------------------------------------------------
 
 MLX_LOCAL_PATHS = {
-    "deepseek_coder": "/tmp/deepseek-coder-1.3b-base-mlx",
+    # DeepSeek-Coder-1.3B-Base ships only pytorch_model.bin on HF, so we
+    # converted .bin -> .safetensors directly via the safetensors library
+    # (transformers.save_pretrained produced broken weights for this model).
+    # Instruct ships safetensors natively, so we load it from HF directly.
+    "deepseek_coder": os.path.expanduser("~/cot-hurts-mlx-models/ds-coder-1.3b-base-st"),
 }
 
 
@@ -111,14 +118,20 @@ def _generate_mlx(model, tokenizer, prompt, device, max_new_tokens=512):
     from mlx_lm import stream_generate
 
     text = ""
+    n_tokens = 0
+    early_stopped = False
     for response in stream_generate(model, tokenizer, prompt, max_tokens=max_new_tokens):
         text += response.text
+        n_tokens += 1
         # Early stop: if a complete code block is present (opening + content + closing ```)
         # Safe: only triggers when extract_code would succeed, so no premature cutoff
         if re.search(r'```(?:python)?\s*\n.+?\n```', text, re.DOTALL):
+            early_stopped = True
             break
 
-    return text
+    # Truncated = hit max_tokens without finding a complete code block AND no natural EOS
+    truncated = (n_tokens >= max_new_tokens) and not early_stopped
+    return text, n_tokens, truncated
 
 
 def _cleanup_mlx(device):
@@ -203,11 +216,14 @@ def main():
         for style in args.styles:
             prompt = PROMPT_STYLES[style](prob["prompt"])
             prompt = format_prompt_gen(prompt, tokenizer, meta)
-            generated = generate_code(model, tokenizer, prompt, device,
-                                      backend=args.backend)
+            generated, n_tokens, truncated = generate_code(
+                model, tokenizer, prompt, device, backend=args.backend
+            )
             passed = check_correctness(generated, prob)
             row[f"{style}_pass"] = passed
-            row[f"{style}_output"] = generated[:500]
+            row[f"{style}_output"] = generated  # full output, no truncation
+            row[f"{style}_n_tokens"] = n_tokens
+            row[f"{style}_truncated"] = truncated
         results.append(row)
         cleanup_gen(device, args.backend)
 
